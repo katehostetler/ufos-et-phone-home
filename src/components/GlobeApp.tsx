@@ -5,6 +5,7 @@ import * as THREE from "three";
 import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
 import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
+import { applyCityLightShimmer } from "@/lib/globeShimmer";
 import type { Record, MediaType } from "@/types/record";
 
 const COLORS: Record<MediaType, string> = {
@@ -173,6 +174,15 @@ export default function GlobeApp({ records }: Props) {
       makeStarLayer(800, 560, 0.55, 0.4),  // distant haze
     ];
 
+    // Subtly twinkle the night-earth city lights via a fragment-shader patch.
+    // Respect prefers-reduced-motion: skip if the user has it enabled.
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let stopShimmer: (() => void) | null = null;
+    if (!reduceMotion) {
+      const mat = (globeRef.current as any).globeMaterial?.();
+      if (mat) stopShimmer = applyCityLightShimmer(mat, { intensity: 0.22, rate: 1.0 });
+    }
+
     return () => {
       controls.removeEventListener("start", onStart);
       controls.removeEventListener("end", onEnd);
@@ -182,6 +192,7 @@ export default function GlobeApp({ records }: Props) {
         l.geo.dispose();
         l.mat.dispose();
       }
+      if (stopShimmer) stopShimmer();
     };
   }, []);
 
