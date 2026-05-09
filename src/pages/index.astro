@@ -26,19 +26,23 @@ const counts = {
     <GlobeApp client:only="react" records={all} />
 
     <footer class="dock">
-      <a href="/videos" data-queue="vid" class="chip vid active">
+      <span class="dock-label">▤ BROWSE GALLERY</span>
+      <a href="/videos" data-queue="vid" class="chip vid active" title="Browse all videos in a stack">
         <span class="swatch"></span>{counts.vid} VIDEOS
       </a>
-      <a href="/photos" data-queue="img" class="chip img active">
+      <a href="/photos" data-queue="img" class="chip img active" title="Browse all photos">
         <span class="swatch"></span>{counts.img} PHOTOS
       </a>
-      <a href="/files" data-queue="pdf" class="chip pdf active">
+      <a href="/files" data-queue="pdf" class="chip pdf active" title="Browse all documents">
         <span class="swatch"></span>{counts.pdf} FILES
       </a>
-      <a href="/no-location" data-queue="noloc" class="chip">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
+      <a href="/no-location" data-queue="noloc" class="chip" title="Records without a location">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
     </footer>
 
     <div class="banner-instr">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
+
+    <!-- Mobile-only declassified badge (stamp is hidden in the Hud on mobile) -->
+    <span class="mobile-stamp">DECLASSIFIED · {all.length} RECORDS</span>
   </main>
 </Base>
 
@@ -69,13 +73,23 @@ const counts = {
     left: 50%;
     transform: translateX(-50%);
     display: flex;
+    align-items: center;
     gap: 8px;
     z-index: 6;
     background: rgba(0,0,0,.45);
     backdrop-filter: blur(6px);
-    padding: 6px 8px;
+    padding: 6px 10px 6px 12px;
     border: 1px solid var(--color-line);
     border-radius: 2px;
+  }
+  :global(.filterbar-label) {
+    font-size: 9px;
+    letter-spacing: .22em;
+    color: var(--color-hud);
+    padding-right: 8px;
+    border-right: 1px solid rgba(106,255,200,.25);
+    margin-right: 2px;
+    flex-shrink: 0;
   }
 
   :global(.globe-stage) {
@@ -87,7 +101,7 @@ const counts = {
     filter: brightness(1.18) contrast(1.04) saturate(1.08);
   }
 
-  /* dock at bottom */
+  /* dock at bottom — opens the in-place gallery/queue browser */
   .dock {
     position: fixed;
     left: 0; right: 0; bottom: 0;
@@ -102,6 +116,40 @@ const counts = {
     z-index: 7;
   }
   .dock .chip { text-decoration: none; padding: 7px 16px; }
+  .dock-label {
+    font-size: 9px;
+    letter-spacing: .22em;
+    color: var(--color-hud);
+    padding-right: 8px;
+    border-right: 1px solid rgba(106,255,200,.25);
+    margin-right: 2px;
+    flex-shrink: 0;
+  }
+
+  /* mobile-only declassified stamp */
+  .mobile-stamp {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    .mobile-stamp {
+      display: inline-flex;
+      align-items: center;
+      position: fixed;
+      top: 56px; right: 8px;
+      font-size: 8px;
+      letter-spacing: .18em;
+      color: var(--color-vid);
+      border: 1px solid rgba(255,59,59,.5);
+      padding: 3px 7px;
+      border-radius: 2px;
+      background: rgba(255,59,59,.08);
+      text-transform: uppercase;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      z-index: 6;
+      pointer-events: none;
+    }
+  }
 
   .banner-instr {
     position: absolute;
@@ -150,13 +198,13 @@ const counts = {
 
     /* Filterbar — sits just below the header, full width scrollable */
     :global(.filterbar) {
-      top: 56px;
+      top: 84px;
       left: 8px;
       right: 8px;
       transform: none;
       justify-content: flex-start;
       gap: 6px;
-      padding: 5px 6px;
+      padding: 5px 8px;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
@@ -165,6 +213,16 @@ const counts = {
     }
     :global(.filterbar)::-webkit-scrollbar { display: none; }
     :global(.filterbar) .chip { flex: 0 0 auto; }
+    :global(.filterbar-label) {
+      font-size: 8px;
+      letter-spacing: .16em;
+      padding-right: 6px;
+    }
+    .dock-label {
+      font-size: 8px;
+      letter-spacing: .16em;
+      padding-right: 6px;
+    }
 
     /* Dock — horizontal scroll if it overflows */
     .dock {
