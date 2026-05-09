@@ -4,11 +4,14 @@ import type { Record } from "@/types/record";
 interface Props {
   records: Record[];
   onClose: () => void;
+  /** Label on the close button. "BACK TO GLOBE" when opened from the globe homepage,
+   *  "BACK TO GALLERY" when opened from a gallery page, "CLOSE" if unspecified. */
+  closeLabel?: string;
 }
 
 const TYPE_LABEL = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
 
-export default function RecordModal({ records, onClose }: Props) {
+export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: Props) {
   const [idx, setIdx] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   const rec = records[idx];
@@ -118,9 +121,9 @@ export default function RecordModal({ records, onClose }: Props) {
               {idx + 1} / {records.length}
             </span>
           )}
-          <button className="close-btn" onClick={onClose} aria-label="Back to globe">
+          <button className="close-btn" onClick={onClose} aria-label={closeLabel}>
             <span className="close-x">✕</span>
-            <span className="close-label">BACK TO GLOBE</span>
+            <span className="close-label">{closeLabel}</span>
           </button>
         </header>
 

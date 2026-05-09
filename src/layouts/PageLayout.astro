@@ -18,6 +18,10 @@ const allRecords = records as Record[];
 
   <main class="page">
     <header class="page-head">
+      <a href="/" class="back-to-globe" aria-label="Back to globe">
+        <span class="btg-arrow">←</span>
+        <span class="btg-label">BACK TO GLOBE</span>
+      </a>
       <h1 class="page-title">{title}</h1>
       {subtitle && <p class="page-subtitle">{subtitle}</p>}
     </header>
@@ -56,6 +60,28 @@ const allRecords = records as Record[];
     padding-bottom: 16px;
     margin-bottom: 28px;
   }
+  .back-to-globe {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: .2em;
+    color: var(--color-hud);
+    text-decoration: none;
+    padding: 6px 12px;
+    border: 1px solid rgba(106,255,200,.35);
+    border-radius: 2px;
+    background: rgba(106,255,200,.06);
+    transition: all .15s;
+  }
+  .back-to-globe:hover {
+    background: rgba(106,255,200,.16);
+    border-color: var(--color-hud);
+  }
+  .btg-arrow { font-size: 14px; line-height: 1; }
+  .btg-label { font-weight: 700; }
   .page-title {
     font-family: var(--font-display);
     font-size: 26px;

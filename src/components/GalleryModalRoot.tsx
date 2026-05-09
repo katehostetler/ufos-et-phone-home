@@ -28,5 +28,5 @@ export default function GalleryModalRoot({ records }: Props) {
   const rec = records.find((r) => r.id === activeId);
   if (!rec) return null;
 
-  return <RecordModal records={[rec]} onClose={() => setActiveId(null)} />;
+  return <RecordModal records={[rec]} onClose={() => setActiveId(null)} closeLabel="BACK TO GALLERY" />;
 }

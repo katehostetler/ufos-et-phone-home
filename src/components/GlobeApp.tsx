@@ -432,7 +432,7 @@ export default function GlobeApp({ records }: Props) {
 
       {/* modal */}
       {modalRecords && (
-        <RecordModal records={modalRecords} onClose={closeModalPreservingView} />
+        <RecordModal records={modalRecords} onClose={closeModalPreservingView} closeLabel="BACK TO GLOBE" />
       )}
 
       {/* queue / coverflow browser */}
