@@ -1,17 +1,20 @@
 ---
 import Base from "@/layouts/Base.astro";
 import Hud from "@/components/Hud.astro";
+import GalleryModalRoot from "@/components/GalleryModalRoot";
 import records from "@/data/records.json";
+import type { Record } from "@/types/record";
 
 interface Props {
   title: string;
   subtitle?: string;
 }
 const { title, subtitle } = Astro.props;
+const allRecords = records as Record[];
 ---
 
 <Base title={`${title} — UFOs / ET Phone Home`}>
-  <Hud recordCount={records.length} />
+  <Hud recordCount={allRecords.length} />
 
   <main class="page">
     <header class="page-head">
@@ -22,7 +25,23 @@ const { title, subtitle } = Astro.props;
       <slot />
     </div>
   </main>
+
+  <GalleryModalRoot client:load records={allRecords} />
 </Base>
+
+<script>
+  // Click-delegation: any [data-record-id] element opens the record modal in-place
+  // by dispatching a `record-modal-open` event that GalleryModalRoot listens for.
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement;
+    const trigger = target?.closest?.("[data-record-id]") as HTMLElement | null;
+    if (!trigger) return;
+    const id = trigger.dataset.recordId;
+    if (!id) return;
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent("record-modal-open", { detail: id }));
+  });
+</script>
 
 <style>
   .page {

@@ -23,6 +23,7 @@ export interface Record {
   thumbnailUrl: string | null;
   dvidsVideoId: string | null;
   videoTitle: string | null;
+  videoMp4Url: string | null;
   redaction: string | null;
   sourcePage: string;
 }

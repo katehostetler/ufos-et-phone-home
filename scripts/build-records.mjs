@@ -23,6 +23,7 @@ const CSV_URL = 'https://www.war.gov/Portals/1/Interactive/2026/UFO/uap-csv.csv'
 const CACHED_CSV = resolve(ROOT, 'data/uap-csv.csv');
 const LOOKUP = resolve(ROOT, 'data/location-lookup.json');
 const DVIDS_THUMBS = resolve(ROOT, 'data/dvids-thumbs.json');
+const DVIDS_MP4S = resolve(ROOT, 'data/dvids-mp4s.json');
 const OUT = resolve(ROOT, 'src/data/records.json');
 const MIRROR_DIR = resolve(ROOT, 'public/thumbnails');
 const COOKIE_JAR = resolve(ROOT, '.wargov-cookies.txt');
@@ -55,6 +56,14 @@ async function fetchCsv() {
 async function loadDvidsThumbs() {
   try {
     return JSON.parse(await readFile(DVIDS_THUMBS, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+async function loadDvidsMp4s() {
+  try {
+    return JSON.parse(await readFile(DVIDS_MP4S, 'utf8'));
   } catch {
     return {};
   }
@@ -150,6 +159,35 @@ async function scrapeDvidsThumb(id, cache) {
   return null;
 }
 
+async function scrapeDvidsMp4(id, cache) {
+  if (cache[id]) return cache[id];
+  try {
+    const r = await fetch(`https://www.dvidshub.net/video/${id}`, {
+      headers: {
+        'User-Agent': FETCH_HEADERS['User-Agent'],
+        'Accept': 'text/html,*/*',
+      },
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const html = await r.text();
+    // DVIDS exposes the MP4 in a <source src="...mp4" type="video/mp4 ..."> tag.
+    const m = html.match(/<source\s+src="([^"]+\.mp4)"\s+type=['"]video\/mp4/i);
+    if (m) {
+      cache[id] = m[1];
+      return m[1];
+    }
+    // Fallback: any cloudfront mp4 link in the HTML.
+    const m2 = html.match(/https?:\/\/[^"']+\.mp4/);
+    if (m2) {
+      cache[id] = m2[0];
+      return m2[0];
+    }
+  } catch (err) {
+    console.log(`  ⚠ DVIDS MP4 scrape failed for ${id}: ${err.message}`);
+  }
+  return null;
+}
+
 function detectMediaType(row) {
   const t = (row['Type'] || '').trim().toUpperCase();
   if (t === 'VID') return 'vid';
@@ -201,6 +239,8 @@ async function main() {
   const lookup = JSON.parse(await readFile(LOOKUP, 'utf8'));
   const dvidsCache = await loadDvidsThumbs();
   const dvidsCacheStartSize = Object.keys(dvidsCache).length;
+  const dvidsMp4Cache = await loadDvidsMp4s();
+  const dvidsMp4CacheStartSize = Object.keys(dvidsMp4Cache).length;
 
   const rawRows = parse(csvText, {
     columns: true,
@@ -266,6 +306,7 @@ async function main() {
       thumbnailUrl: thumbnail || null,
       dvidsVideoId: dvidsId || null,
       videoTitle: videoTitle || null,
+      videoMp4Url: null,
       redaction: redaction || null,
       sourcePage: 'https://www.war.gov/UFO/',
     };
@@ -291,6 +332,29 @@ async function main() {
     }
     if (Object.keys(dvidsCache).length > dvidsCacheStartSize) {
       await writeFile(DVIDS_THUMBS, JSON.stringify(dvidsCache, null, 2));
+    }
+  }
+
+  // Fetch DVIDS MP4 URLs for every video record that has a dvidsVideoId.
+  const videoRecordsForMp4 = records.filter(
+    (r) => r.mediaType === 'vid' && r.dvidsVideoId,
+  );
+  if (videoRecordsForMp4.length > 0) {
+    const uncachedMp4 = videoRecordsForMp4.filter(
+      (r) => !dvidsMp4Cache[r.dvidsVideoId],
+    );
+    if (uncachedMp4.length > 0) {
+      console.log(
+        `Fetching ${uncachedMp4.length} DVIDS MP4 URLs (${videoRecordsForMp4.length - uncachedMp4.length} cached)...`,
+      );
+    }
+    for (const rec of videoRecordsForMp4) {
+      const mp4 = await scrapeDvidsMp4(rec.dvidsVideoId, dvidsMp4Cache);
+      rec.videoMp4Url = mp4 || null;
+      if (uncachedMp4.includes(rec)) await new Promise((r) => setTimeout(r, 250));
+    }
+    if (Object.keys(dvidsMp4Cache).length > dvidsMp4CacheStartSize) {
+      await writeFile(DVIDS_MP4S, JSON.stringify(dvidsMp4Cache, null, 2));
     }
   }
 

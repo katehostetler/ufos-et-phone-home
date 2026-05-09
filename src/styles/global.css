@@ -147,18 +147,25 @@ body::after {
 .chip.active     { color: var(--color-hud); border-color: rgba(106,255,200,.5); background: rgba(106,255,200,.08); }
 .chip.off        { opacity: .35; }
 
-/* Pin tooltip used by globe.gl */
+/* Pin tooltip used by globe.gl. The wrapper div globe.gl injects has class
+   `scene-tooltip` and inherits stacking context from the canvas — force it
+   above everything in the globe stage so hover labels never get occluded. */
+.scene-tooltip {
+  z-index: 30 !important;
+  pointer-events: none !important;
+}
 .pin-tooltip {
-  background: rgba(0,0,0,.85);
+  background: rgba(0,0,0,.92);
   border: 1px solid var(--color-hud);
   border-radius: 2px;
   padding: 6px 10px;
   font-family: var(--font-mono);
   font-size: 11px;
   color: #e8edf3;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 0 14px rgba(106,255,200,.25);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 14px rgba(106,255,200,.4), 0 4px 16px rgba(0,0,0,.6);
   pointer-events: none;
+  max-width: 280px;
 }
 .pin-tooltip .loc {
   color: var(--color-hud);
