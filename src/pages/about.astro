@@ -1,0 +1,96 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import records from "@/data/records.json";
+const counts = {
+  total: records.length,
+  vid: records.filter((r: any) => r.mediaType === "vid").length,
+  img: records.filter((r: any) => r.mediaType === "img").length,
+  pdf: records.filter((r: any) => r.mediaType === "pdf").length,
+  mapped: records.filter((r: any) => r.hasLocation).length,
+};
+---
+
+<PageLayout title="ABOUT" subtitle="What this archive is and where it comes from">
+  <div class="prose">
+    <p>
+      <strong>UFOs / ET Phone Home</strong> is an unofficial, fan-made archive of the U.S. Department of War's
+      declassified UAP (Unidentified Anomalous Phenomena) document release at
+      <a href="https://www.war.gov/UFO/" target="_blank" rel="noopener">war.gov/UFO</a>.
+    </p>
+    <p>
+      All records and original PDFs link directly back to the government source. Nothing is mirrored or modified —
+      this site is a presentation layer over the public CSV manifest the government publishes.
+    </p>
+
+    <h2>Stats</h2>
+    <ul>
+      <li><strong>{counts.total}</strong> total records (release_01)</li>
+      <li><strong>{counts.vid}</strong> videos · <strong>{counts.img}</strong> photos · <strong>{counts.pdf}</strong> documents</li>
+      <li><strong>{counts.mapped}</strong> with location data plotted on the globe</li>
+    </ul>
+
+    <h2>Methodology</h2>
+    <ul>
+      <li>The CSV manifest is fetched from <code>war.gov</code> at build time and cached.</li>
+      <li>Incident-Location strings are geocoded with a static lookup table (committed to the repo) — see <code>data/location-lookup.json</code>.</li>
+      <li>Regional locations (e.g. "Middle East", "Indo-PACOM") are flagged and rendered as larger pins to avoid implying false precision.</li>
+      <li>Videos are embedded from DVIDS using their public iframe API.</li>
+    </ul>
+
+    <h2>Source</h2>
+    <p>
+      <a href="https://www.war.gov/UFO/" target="_blank" rel="noopener" class="link-arrow">WAR.GOV/UFO →</a>
+    </p>
+  </div>
+</PageLayout>
+
+<style>
+  .prose {
+    max-width: 720px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #d8dde6;
+  }
+  .prose a { color: var(--color-hud); }
+  .prose h2 {
+    font-family: var(--font-display);
+    font-size: 14px;
+    letter-spacing: .15em;
+    margin: 32px 0 12px;
+    color: var(--color-hud);
+    text-transform: uppercase;
+  }
+  .prose ul {
+    padding-left: 18px;
+    margin: 12px 0;
+  }
+  .prose li { margin: 6px 0; }
+  .prose strong { color: #fff; font-weight: 600; }
+  .prose code {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.08);
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 12px;
+  }
+  .link-arrow {
+    display: inline-flex; align-items: center;
+    border: 1px solid var(--color-hud);
+    color: var(--color-hud) !important;
+    padding: 8px 14px;
+    text-decoration: none;
+    letter-spacing: .2em;
+    font-size: 11px;
+    transition: all .15s;
+  }
+  .link-arrow:hover {
+    background: var(--color-hud);
+    color: var(--color-bg) !important;
+  }
+  @media (max-width: 767px) {
+    .prose { font-size: 13px; line-height: 1.65; }
+    .prose h2 { font-size: 12px; margin: 24px 0 10px; }
+    .prose code { font-size: 11px; }
+    .link-arrow { font-size: 10px; padding: 7px 12px; }
+  }
+</style>

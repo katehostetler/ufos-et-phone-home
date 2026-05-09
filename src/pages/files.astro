@@ -1,0 +1,30 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import RecordCard from "@/components/RecordCard.astro";
+import records from "@/data/records.json";
+import type { Record } from "@/types/record";
+
+const pdfs = (records as Record[])
+  .filter((r) => r.mediaType === "pdf")
+  .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+---
+
+<PageLayout title="DOCUMENT ARCHIVE" subtitle={`${pdfs.length} declassified documents · linked to source on war.gov`}>
+  <div class="grid">
+    {pdfs.map((r) => <RecordCard record={r} />)}
+  </div>
+</PageLayout>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  @media (max-width: 767px) {
+    .grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+  }
+</style>

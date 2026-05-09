@@ -1,0 +1,38 @@
+---
+interface Props {
+  total: number;
+}
+const { total } = Astro.props;
+---
+
+<div class="ticker"><span class="blink-dot"></span>TRACKING · {total} RECORDS</div>
+
+<style>
+  .ticker {
+    position: fixed;
+    right: 28px;
+    top: 110px;
+    background: rgba(8,12,20,.6);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,59,59,.4);
+    padding: 8px 12px;
+    font-size: 10px;
+    letter-spacing: .12em;
+    color: var(--color-vid);
+    z-index: 6;
+  }
+
+  @media (max-width: 1024px) {
+    .ticker {
+      right: 16px;
+      top: 92px;
+      padding: 6px 10px;
+      font-size: 9px;
+    }
+  }
+
+  /* Hide on mobile — would overlap the globe + filter chips */
+  @media (max-width: 767px) {
+    .ticker { display: none; }
+  }
+</style>

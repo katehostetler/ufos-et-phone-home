@@ -1,0 +1,33 @@
+{
+  "name": "ufos-et-phone-home",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "node scripts/build-records.mjs && astro build",
+    "build:data": "node scripts/build-records.mjs",
+    "preview": "astro preview",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.4",
+    "@tailwindcss/vite": "^4.3.0",
+    "astro": "^6.3.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-globe.gl": "^2.37.1",
+    "tailwindcss": "^4.3.0",
+    "three": "^0.181.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@types/three": "^0.181.0",
+    "csv-parse": "^6.1.0"
+  },
+  "overrides": {
+    "vite": "^7.0.0"
+  }
+}

@@ -13,6 +13,15 @@ dist/
 .env.*
 !.env.example
 
+# build-time scratch
+.wargov-cookies.txt
+
+# playwright + ad-hoc test screenshots
+.playwright-mcp/
+*.png
+!public/**/*.png
+!src/**/*.png
+
 # logs
 *.log
 npm-debug.log*

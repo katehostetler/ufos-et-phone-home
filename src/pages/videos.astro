@@ -1,0 +1,30 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import RecordCard from "@/components/RecordCard.astro";
+import records from "@/data/records.json";
+import type { Record } from "@/types/record";
+
+const vids = (records as Record[])
+  .filter((r) => r.mediaType === "vid")
+  .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+---
+
+<PageLayout title="VIDEO FOOTAGE" subtitle={`${vids.length} declassified videos · sortable by year`}>
+  <div class="grid">
+    {vids.map((r) => <RecordCard record={r} />)}
+  </div>
+</PageLayout>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  @media (max-width: 767px) {
+    .grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+  }
+</style>

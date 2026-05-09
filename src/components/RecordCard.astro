@@ -1,0 +1,124 @@
+---
+import type { Record } from "@/types/record";
+interface Props { record: Record; }
+const { record } = Astro.props;
+---
+
+<article class={`card ${record.mediaType}`}>
+  <a href={record.assetUrl || record.sourcePage} target="_blank" rel="noopener">
+    <div class="thumb">
+      {record.thumbnailUrl ? (
+        <img src={record.thumbnailUrl} alt={record.title} loading="lazy" />
+      ) : (
+        <div class="thumb-placeholder">NO PREVIEW</div>
+      )}
+      <span class={`type-badge ${record.mediaType}`}>{record.mediaType.toUpperCase()}</span>
+    </div>
+    <div class="card-body">
+      <div class="card-meta">
+        <span class="agency">{record.agency}</span>
+        {record.year && <span class="year">{record.year}</span>}
+      </div>
+      <h3 class="card-title">{record.title}</h3>
+      {record.location && <div class="card-loc">⊙ {record.location.name}</div>}
+    </div>
+  </a>
+</article>
+
+<style>
+  .card {
+    background: rgba(8,12,20,.65);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 2px;
+    overflow: hidden;
+    transition: all .2s;
+  }
+  .card:hover { border-color: var(--color-hud); transform: translateY(-2px); }
+  .card a { text-decoration: none; color: inherit; display: block; }
+
+  .thumb {
+    aspect-ratio: 3/4;
+    background: #06080d;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+    filter: brightness(.92);
+    transition: filter .3s;
+  }
+  .card:hover .thumb img { filter: brightness(1.05); }
+  .thumb-placeholder {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; letter-spacing: .2em;
+    color: rgba(255,255,255,.3);
+  }
+  .type-badge {
+    position: absolute;
+    top: 8px; right: 8px;
+    font-size: 9px;
+    letter-spacing: .2em;
+    padding: 3px 6px;
+    border-radius: 2px;
+    font-weight: 700;
+    backdrop-filter: blur(4px);
+  }
+  .type-badge.vid { background: rgba(255,59,59,.85);  color: #fff; }
+  .type-badge.img { background: rgba(90,215,255,.85); color: #04060b; }
+  .type-badge.pdf { background: rgba(255,200,112,.85); color: #04060b; }
+
+  .card-body { padding: 12px 14px 14px; }
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9px;
+    letter-spacing: .15em;
+    color: rgba(255,255,255,.55);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .agency { color: var(--color-hud); }
+  .card-title {
+    font-size: 12px;
+    line-height: 1.4;
+    margin: 0 0 6px;
+    font-weight: 500;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-loc {
+    font-size: 9px;
+    letter-spacing: .15em;
+    color: rgba(255,255,255,.5);
+    text-transform: uppercase;
+  }
+
+  @media (max-width: 767px) {
+    .card-body { padding: 10px 11px 12px; }
+    .card-meta {
+      font-size: 8px;
+      letter-spacing: .1em;
+      margin-bottom: 5px;
+    }
+    .card-title {
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .card-loc {
+      font-size: 8px;
+      letter-spacing: .1em;
+    }
+    .type-badge {
+      font-size: 8px;
+      padding: 2px 5px;
+      letter-spacing: .15em;
+    }
+  }
+</style>
