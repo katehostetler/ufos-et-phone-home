@@ -20,3 +20,5 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 - Added HUD chrome: corner brackets, scan lines, classified stamp, live UTC clock, tracking ticker, legend, dock
 - Mobile-responsive sweep across all components (≤768px) + tablet (≤1024px); globe touch interaction works via OrbitControls
 - Modal video sizing: hero capped at min(50vh, 480px) so blurb stays in view on tall windows; full-screen modal on mobile
+- Set up Vitest + @testing-library/react + jsdom for the project's first test framework; added `test` / `test:watch` scripts
+- Reworked globe pins as glossy 3D pushpins: a thin chrome needle (cylinder) topped by a glossy, media-type-coloured bead (sphere) — replaces the previous tapered cone "column" pins. Built as a `customLayerData` THREE.Group so three-globe doesn't auto-stretch the head; an invisible `pointsData` hit-target preserves native hover/click. Regional locations get a larger bead; touch devices get a fatter bead and longer needle for tap targets

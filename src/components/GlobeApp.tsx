@@ -4,6 +4,7 @@ import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
+import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
 import type { Record, MediaType } from "@/types/record";
 
 const COLORS: Record<MediaType, string> = {
@@ -309,18 +310,23 @@ export default function GlobeApp({ records }: Props) {
           showAtmosphere={true}
           atmosphereColor="#5ab4ff"
           atmosphereAltitude={0.28}
-          /* The pin "head" — a sphere using globe.gl's pointsData. Owns the
-             click + hover behavior. Sits at altitude where the head should be. */
+          /* The pushpin's clickable hit-target. We keep pointsData (it owns
+             native hover/click) but render it transparent — the visible pin is
+             the customLayer group below. The hit volume sits roughly where the
+             bead is, so clicking the bead always registers. */
           pointsData={points}
           pointLat={(d: any) => d.location.lat}
           pointLng={(d: any) => d.location.lng}
-          pointAltitude={(d: any) => (d.location.regional ? 0.05 : 0.04)}
+          pointAltitude={(d: any) =>
+            pushpinAltitude({ regional: d.location.regional, touch: isTouch })
+          }
           pointRadius={(d: any) => {
-            const base = d.location.regional ? 1.0 : 0.85;
-            return isTouch ? base * 1.6 : base;
+            const base =
+              (d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * 0.95;
+            return isTouch ? base * PUSHPIN.touchScale : base;
           }}
-          pointResolution={20}
-          pointColor={(d: any) => COLORS[d.mediaType as MediaType]}
+          pointResolution={12}
+          pointColor={() => "rgba(0,0,0,0)"}
           /* Hover tooltip — desktop only. On touch we show our own
              touch-preview overlay instead, to avoid the doubled-tooltip bug. */
           pointLabel={(d: any) =>
@@ -333,51 +339,30 @@ export default function GlobeApp({ records }: Props) {
                 </div>`
           }
           onPointClick={onPointClick}
-          /* The pin "body" — a tapered cone connecting the sphere head down
-             to the surface. Pure decoration; no interactivity. */
+          /* The visible pushpin — a customLayer group (chrome needle + glossy
+             colored bead). Built once with the right dimensions; the update
+             function only positions and orients it so local +Y points radially
+             outward from the surface. */
           customLayerData={points}
-          customThreeObject={(d: any) => {
-            const color = new THREE.Color(COLORS[d.mediaType as MediaType]);
-            // tapered cone: narrow tip (radBot) at surface, wider top (radTop)
-            // where the head sphere sits. Height = 1; we scale to altitude.
-            const geo = new THREE.CylinderGeometry(0.55, 0.08, 1, 14, 1, false);
-            const mat = new THREE.MeshPhongMaterial({
-              color,
-              shininess: 50,
-              specular: new THREE.Color(0x333333),
-              emissive: color.clone().multiplyScalar(0.12),
-            });
-            return new THREE.Mesh(geo, mat);
-          }}
+          customThreeObject={(d: any) =>
+            makePushpin({
+              color: COLORS[d.mediaType as MediaType],
+              regional: d.location.regional,
+              touch: isTouch,
+            })
+          }
           customThreeObjectUpdate={(obj: any, d: any) => {
             if (!globeRef.current) return;
-            const altitude = d.location.regional ? 0.05 : 0.04;
-            const tip = (globeRef.current as any).getCoords(
-              d.location.lat,
-              d.location.lng,
-              altitude,
-            );
             const surf = (globeRef.current as any).getCoords(
               d.location.lat,
               d.location.lng,
               0,
             );
-            obj.position.set(
-              (tip.x + surf.x) / 2,
-              (tip.y + surf.y) / 2,
-              (tip.z + surf.z) / 2,
-            );
-            const length = Math.sqrt(
-              (tip.x - surf.x) ** 2 +
-                (tip.y - surf.y) ** 2 +
-                (tip.z - surf.z) ** 2,
-            );
-            // X/Z scale = 1.0 keeps the geometry's radii. Y scales to altitude.
-            // On touch, pump the cone larger so it visually balances the bigger head.
-            const xz = isTouch ? 1.4 : 1.0;
-            obj.scale.set(xz, length, xz);
+            obj.position.set(surf.x, surf.y, surf.z);
+            // After lookAt + rotateX(-90°), local +Y points radially outward —
+            // matching the pushpin geometry built from y=0 (surface) upward.
             obj.lookAt(0, 0, 0);
-            obj.rotateX(Math.PI / 2);
+            obj.rotateX(-Math.PI / 2);
           }}
           ringsData={rings}
           ringLat={(d: any) => d.location.lat}

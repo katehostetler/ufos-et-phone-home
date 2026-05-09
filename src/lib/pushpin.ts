@@ -1,54 +1,71 @@
 import * as THREE from "three";
 
 /**
- * Tunable geometry for the map-style pushpin markers on the globe.
- * Units are react-globe.gl globe units (the globe radius is ~100).
- * `headAltitude` is the altitude (fraction of globe radius) the bead floats at;
- * the needle spans from the surface up to that altitude.
+ * three-globe renders the globe at radius 100; an "altitude" of N places a
+ * point N*100 world units above the surface. We mirror that here so the
+ * pushpin group, built in local space, lines up with globe.gl's coordinates.
  */
+const GLOBE_RADIUS = 100;
+
+/** Tunable geometry for the map-style pushpin markers. */
 export const PUSHPIN = {
-  needleRadius: 0.06,
-  needleLengthUnit: 1, // geometry height; scaled to the actual altitude at update time
-  headRadius: 1.15,
-  headRadiusRegional: 1.4,
-  headAltitude: 0.07,
-  headAltitudeRegional: 0.09,
-  needleColor: 0x9aa3ad, // chrome shaft
+  needleRadius: 0.14, // chrome shaft radius (world units)
+  beadRadius: 1.25,
+  beadRadiusRegional: 1.6,
+  altitude: 0.06, // bead floats this high (fraction of globe radius)
+  altitudeRegional: 0.075,
+  needleColor: 0xb8c0c8,
+  touchScale: 1.5, // pins get pumped up on touch devices for fat tap targets
 } as const;
 
-/**
- * The pushpin shaft: a thin, straight, glossy metallic needle.
- * The caller (GlobeApp's customThreeObjectUpdate) positions, orients, and
- * Y-scales it so the tip touches the globe surface and the top meets the bead.
- * The `color` option is accepted for a possible future colored-collar variant;
- * the shaft itself is intentionally neutral chrome so it reads as a real pin.
- */
-export function makePushpinNeedle(_opts: { color: string }): THREE.Mesh {
-  const geo = new THREE.CylinderGeometry(
-    PUSHPIN.needleRadius,
-    PUSHPIN.needleRadius,
-    PUSHPIN.needleLengthUnit,
-    10,
-    1,
-    false,
-  );
-  const mat = new THREE.MeshPhongMaterial({
-    color: PUSHPIN.needleColor,
-    shininess: 90,
-    specular: new THREE.Color(0xffffff),
-  });
-  return new THREE.Mesh(geo, mat);
+export interface PushpinOpts {
+  color: string;
+  regional?: boolean;
+  touch?: boolean;
 }
 
-/** A glossy bead head — used as the clickable point object on the globe. */
-export function makePushpinHead(opts: { color: string; radius: number }): THREE.Mesh {
+/** The bead altitude (fraction of globe radius) for a given record, incl. touch pump. */
+export function pushpinAltitude(opts: { regional?: boolean; touch?: boolean }): number {
+  const k = opts.touch ? PUSHPIN.touchScale : 1;
+  return (opts.regional ? PUSHPIN.altitudeRegional : PUSHPIN.altitude) * k;
+}
+
+/**
+ * A map-style pushpin as a THREE.Group: a thin glossy chrome needle along the
+ * group's local +Y axis (y=0 at the globe surface, rising to the bead) topped
+ * by a glossy, media-type-colored bead sphere. The caller positions the group
+ * at the surface point and rotates it so local +Y points radially outward.
+ */
+export function makePushpin(opts: PushpinOpts): THREE.Group {
+  const g = new THREE.Group();
+  const k = opts.touch ? PUSHPIN.touchScale : 1;
+  const len = pushpinAltitude(opts) * GLOBE_RADIUS;
+  const beadR = (opts.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * k;
+  const needleR = PUSHPIN.needleRadius * (opts.touch ? 1.3 : 1);
+
+  const needle = new THREE.Mesh(
+    new THREE.CylinderGeometry(needleR, needleR, len, 10, 1, false),
+    new THREE.MeshPhongMaterial({
+      color: PUSHPIN.needleColor,
+      shininess: 100,
+      specular: new THREE.Color(0xffffff),
+    }),
+  );
+  needle.position.y = len / 2; // CylinderGeometry is centered on its origin; shift to span 0..len
+  g.add(needle);
+
   const color = new THREE.Color(opts.color);
-  const geo = new THREE.SphereGeometry(opts.radius, 22, 22);
-  const mat = new THREE.MeshPhongMaterial({
-    color,
-    shininess: 80,
-    specular: new THREE.Color(0xffffff),
-    emissive: color.clone().multiplyScalar(0.12),
-  });
-  return new THREE.Mesh(geo, mat);
+  const bead = new THREE.Mesh(
+    new THREE.SphereGeometry(beadR, 22, 22),
+    new THREE.MeshPhongMaterial({
+      color,
+      shininess: 80,
+      specular: new THREE.Color(0xffffff),
+      emissive: color.clone().multiplyScalar(0.14), // keep pins legible on the night side
+    }),
+  );
+  bead.position.y = len + beadR * 0.1; // perch the bead just above the needle's tip
+  g.add(bead);
+
+  return g;
 }
