@@ -19,14 +19,14 @@ function makeLcg(seed: number) {
 // ── Pool ─────────────────────────────────────────────────────────────────────
 
 describe("UFO_POOL", () => {
-  it("contains at least 6 entries", () => {
-    expect(UFO_POOL.length).toBeGreaterThanOrEqual(6);
+  it("contains at least 4 entries (variety so the same one doesn't loop)", () => {
+    expect(UFO_POOL.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("contains both 'orb' and 'saucer' kinds", () => {
-    const kinds = new Set(UFO_POOL.map((u) => u.kind));
-    expect(kinds.has("orb")).toBe(true);
-    expect(kinds.has("saucer")).toBe(true);
+  it("is saucers only — Kate dropped orbs", () => {
+    for (const spec of UFO_POOL) {
+      expect(spec.kind).toBe("saucer");
+    }
   });
 
   it("all entries have valid structure", () => {
@@ -46,6 +46,17 @@ describe("UFO_POOL", () => {
     const pinColors = ["#ff3b3b", "#5ad7ff", "#ffc870"];
     for (const spec of UFO_POOL) {
       expect(pinColors).not.toContain(spec.color.toLowerCase());
+    }
+  });
+
+  it("colors are all greens (high green channel, dominant green)", () => {
+    for (const spec of UFO_POOL) {
+      const r = parseInt(spec.color.slice(1, 3), 16);
+      const g = parseInt(spec.color.slice(3, 5), 16);
+      const b = parseInt(spec.color.slice(5, 7), 16);
+      expect(g).toBeGreaterThanOrEqual(r);
+      expect(g).toBeGreaterThanOrEqual(b);
+      expect(g).toBeGreaterThan(150); // visibly bright on the dark globe
     }
   });
 });
@@ -105,12 +116,12 @@ describe("randomUfoSpec", () => {
 
   it("produces varied specs across many calls", () => {
     const rnd = makeLcg(7);
-    const kinds = new Set<string>();
+    const colors = new Set<string>();
     for (let i = 0; i < 50; i++) {
-      kinds.add(randomUfoSpec(rnd).spec.kind);
+      colors.add(randomUfoSpec(rnd).spec.color);
     }
-    // Should have seen both kinds in 50 calls
-    expect(kinds.size).toBeGreaterThanOrEqual(2);
+    // With a 5-entry pool we should see most of them in 50 calls
+    expect(colors.size).toBeGreaterThanOrEqual(3);
   });
 });
 

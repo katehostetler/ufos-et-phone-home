@@ -35,106 +35,70 @@ export interface UfoSpec {
 }
 
 /**
- * The starter pool of 8 UFO specs.
- * Mix of orbs and saucers. All pale/neutral tones that don't clash
- * with the pin colors (red / cyan-blue / gold).
+ * The UFO pool. All saucers — Kate's call, no orbs (orbs read as too "thing
+ * floating" instead of "spacecraft"). All in alien-green tones, kept varied
+ * so the same one doesn't look like it's looping.
  */
 export const UFO_POOL: UfoSpec[] = [
   {
-    kind: "orb",
-    color: "#b8ffe0",   // pale mint
-    glowIntensity: 0.75,
-    latRange: [-50, 50],
-    lngRange: [-180, 180],
-    altitude: 0.18,
-    lifespan: 18,
-    spinSpeed: 0,
-    pulseSpeed: 1.8,
-    driftSpeed: 3.5,
-  },
-  {
     kind: "saucer",
-    color: "#d4c8ff",   // pale lavender
-    glowIntensity: 0.6,
+    color: "#5cff8c",   // classic UFO green
+    glowIntensity: 0.5,
     latRange: [-45, 45],
     lngRange: [-180, 180],
     altitude: 0.22,
-    lifespan: 22,
-    spinSpeed: 0.8,
+    lifespan: 14,
+    spinSpeed: 0.7,
+    pulseSpeed: 0,
+    driftSpeed: 3.2,
+  },
+  {
+    kind: "saucer",
+    color: "#7fffae",   // mint
+    glowIntensity: 0.45,
+    latRange: [-40, 40],
+    lngRange: [-180, 180],
+    altitude: 0.25,
+    lifespan: 12,
+    spinSpeed: 0.9,
+    pulseSpeed: 0,
+    driftSpeed: 3.6,
+  },
+  {
+    kind: "saucer",
+    color: "#9affd0",   // pale-mint
+    glowIntensity: 0.4,
+    latRange: [-50, 50],
+    lngRange: [-180, 180],
+    altitude: 0.20,
+    lifespan: 16,
+    spinSpeed: 0.55,
     pulseSpeed: 0,
     driftSpeed: 2.8,
   },
   {
-    kind: "orb",
-    color: "#e8f4ff",   // very pale ice blue
-    glowIntensity: 0.5,
-    latRange: [-60, 60],
-    lngRange: [-180, 180],
-    altitude: 0.15,
-    lifespan: 15,
-    spinSpeed: 0,
-    pulseSpeed: 2.4,
-    driftSpeed: 4.2,
-  },
-  {
     kind: "saucer",
-    color: "#ffe8b0",   // pale warm white (not gold — lower saturation)
+    color: "#43e07b",   // deeper alien green
     glowIntensity: 0.55,
-    latRange: [-40, 40],
+    latRange: [-35, 35],
     lngRange: [-180, 180],
-    altitude: 0.25,
-    lifespan: 20,
+    altitude: 0.28,
+    lifespan: 13,
     spinSpeed: 1.1,
     pulseSpeed: 0,
     driftSpeed: 3.0,
   },
   {
-    kind: "orb",
-    color: "#c8ffe8",   // ghostly pale green
-    glowIntensity: 0.7,
-    latRange: [-55, 55],
-    lngRange: [-180, 180],
-    altitude: 0.20,
-    lifespan: 16,
-    spinSpeed: 0,
-    pulseSpeed: 1.5,
-    driftSpeed: 3.8,
-  },
-  {
     kind: "saucer",
-    color: "#f0e8ff",   // pale violet
-    glowIntensity: 0.5,
-    latRange: [-35, 35],
-    lngRange: [-180, 180],
-    altitude: 0.28,
-    lifespan: 24,
-    spinSpeed: 0.6,
-    pulseSpeed: 0,
-    driftSpeed: 2.5,
-  },
-  {
-    kind: "orb",
-    color: "#fffbe0",   // pale cream white
+    color: "#aaff80",   // chartreuse-green
     glowIntensity: 0.45,
-    latRange: [-65, 65],
-    lngRange: [-180, 180],
-    altitude: 0.16,
-    lifespan: 14,
-    spinSpeed: 0,
-    pulseSpeed: 2.0,
-    driftSpeed: 5.0,
-  },
-  {
-    kind: "saucer",
-    color: "#b8f0ff",   // pale sky (not the #5ad7ff img-pin blue — lighter)
-    glowIntensity: 0.65,
     latRange: [-42, 42],
     lngRange: [-180, 180],
-    altitude: 0.23,
-    lifespan: 19,
-    spinSpeed: 0.9,
+    altitude: 0.24,
+    lifespan: 15,
+    spinSpeed: 0.8,
     pulseSpeed: 0,
-    driftSpeed: 3.2,
+    driftSpeed: 3.4,
   },
 ];
 
@@ -230,10 +194,10 @@ interface SpawnManagerOptions {
 let _nextId = 1;
 
 export function makeSpawnManager({
-  cap = 3,
+  cap = 1,
   now,
   rnd = Math.random,
-  spawnIntervalMs = 3000,
+  spawnIntervalMs = 35000,
 }: SpawnManagerOptions): SpawnManager {
   const active = new Map<number, ActiveUfo>();
   let lastSpawnAttempt = now - spawnIntervalMs; // allow immediate first spawn
