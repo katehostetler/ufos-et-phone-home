@@ -147,6 +147,10 @@ body::after {
 .chip.active     { color: var(--color-hud); border-color: rgba(106,255,200,.5); background: rgba(106,255,200,.08); }
 .chip.off        { opacity: .35; }
 
+/* Icon-only dock chip (vid/img/pdf in the bottom dock) — bigger glyph, no text */
+.chip-icon { padding: 5px 11px; gap: 7px; }
+.chip-icon .chip-glyph { font-size: 14px; line-height: 1; letter-spacing: 0; }
+
 /* Pin tooltip used by globe.gl. The wrapper div globe.gl (kapsule) injects
    has class `float-tooltip-kap` and lives inside `.scene-container`. Both
    need explicit z-index + visible overflow so hover labels never get occluded
