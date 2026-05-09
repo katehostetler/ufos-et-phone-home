@@ -60,6 +60,29 @@ export default function GlobeApp({ records }: Props) {
     return () => window.removeEventListener("open-queue", onOpen);
   }, []);
 
+  // listen for "open-record" CustomEvents dispatched by HallOfFameOverlay card
+  // clicks. detail = record id. Look up the record, fly the globe to its pin
+  // (if it has a location), and open the existing RecordModal. Mirrors the
+  // pin-click flow so closing the modal restores the prior camera POV.
+  useEffect(() => {
+    function onOpenRecord(e: Event) {
+      const id = (e as CustomEvent<string>).detail;
+      if (!id) return;
+      const rec = records.find((r) => r.id === id);
+      if (!rec) return;
+      if (rec.hasLocation && rec.location && globeRef.current) {
+        savedPovRef.current = (globeRef.current as any).pointOfView() ?? null;
+        globeRef.current.pointOfView(
+          { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
+          1000,
+        );
+      }
+      setModalRecords([rec]);
+    }
+    window.addEventListener("open-record", onOpenRecord);
+    return () => window.removeEventListener("open-record", onOpenRecord);
+  }, [records]);
+
   // when the queue's active record changes, fly the globe to its pin (if any)
   const onQueueActiveChange = useCallback((rec: Record) => {
     if (!rec.location || !globeRef.current) return;

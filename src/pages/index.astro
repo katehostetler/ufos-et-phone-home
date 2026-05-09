@@ -4,7 +4,10 @@ import Hud from "@/components/Hud.astro";
 import Legend from "@/components/Legend.astro";
 import Ticker from "@/components/Ticker.astro";
 import GlobeApp from "@/components/GlobeApp";
+import HallOfFameOverlay from "@/components/HallOfFameOverlay";
 import records from "@/data/records.json";
+import featuredRaw from "@/data/featured.json";
+import { resolveFeatured } from "@/lib/featured";
 import type { Record } from "@/types/record";
 
 const all = records as Record[];
@@ -14,6 +17,8 @@ const counts = {
   pdf: all.filter((r) => r.mediaType === "pdf").length,
   unmapped: all.filter((r) => !r.hasLocation).length,
 };
+
+const featured = resolveFeatured(featuredRaw as any, all);
 ---
 
 <Base>
@@ -24,6 +29,11 @@ const counts = {
     <Ticker total={all.length} />
 
     <GlobeApp client:only="react" records={all} />
+
+    <HallOfFameOverlay client:only="react" featured={featured} />
+
+    <!-- ★ HALL OF FAME chip — bottom-left, above the dock -->
+    <button type="button" class="chip hof-chip" data-open="hall-of-fame" title="The wildest files in the release">★ HALL OF FAME</button>
 
     <footer class="dock">
       <span class="dock-label">▤ BROWSE GALLERY</span>
@@ -51,12 +61,24 @@ const counts = {
   // navigating away. They still degrade to the gallery page if JS is off.
   document.addEventListener("click", (e) => {
     const target = e.target as HTMLElement | null;
-    const trigger = target?.closest?.("[data-queue]") as HTMLElement | null;
-    if (!trigger) return;
-    const type = trigger.dataset.queue;
-    if (!type) return;
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent("open-queue", { detail: type }));
+
+    // Queue chips (dock)
+    const queueTrigger = target?.closest?.("[data-queue]") as HTMLElement | null;
+    if (queueTrigger) {
+      const type = queueTrigger.dataset.queue;
+      if (type) {
+        e.preventDefault();
+        window.dispatchEvent(new CustomEvent("open-queue", { detail: type }));
+      }
+      return;
+    }
+
+    // Hall of Fame chip
+    const hofTrigger = target?.closest?.("[data-open='hall-of-fame']") as HTMLElement | null;
+    if (hofTrigger) {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("open-hall-of-fame"));
+    }
   });
 </script>
 

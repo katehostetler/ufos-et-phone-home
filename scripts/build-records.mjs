@@ -406,6 +406,19 @@ async function main() {
   console.log(`✓ Wrote ${records.length} records to src/data/records.json`);
   console.log(`  vid: ${counts.vid || 0} · img: ${counts.img || 0} · pdf: ${counts.pdf || 0}`);
   console.log(`  mapped: ${counts.mapped || 0} · unmapped: ${counts.unmapped || 0}`);
+
+  // --- validate the curated Hall of Fame list ---
+  const featuredPath = new URL('../src/data/featured.json', import.meta.url);
+  const featured = JSON.parse(await readFile(featuredPath));
+  if (!Array.isArray(featured) || featured.length === 0) {
+    console.error('featured.json must be a non-empty array'); process.exit(1);
+  }
+  const recIds = new Set(records.map((r) => r.id));
+  for (const f of featured) {
+    if (!recIds.has(f.id)) { console.error(`featured.json references unknown record id: ${f.id}`); process.exit(1); }
+    if (typeof f.hook !== 'string' || !f.hook.trim()) { console.error(`featured.json entry ${f.id} has an empty hook`); process.exit(1); }
+  }
+  console.log(`✓ featured.json: ${featured.length} records validated`);
 }
 
 main().catch((e) => {
