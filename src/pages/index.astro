@@ -68,6 +68,10 @@ const counts = {
     position: absolute; inset: 0;
     z-index: 1;
   }
+  /* Brighten the rendered globe canvas slightly so earth + atmosphere pop more */
+  :global(.globe-stage canvas) {
+    filter: brightness(1.18) contrast(1.04) saturate(1.08);
+  }
 
   /* dock at bottom */
   .dock {
