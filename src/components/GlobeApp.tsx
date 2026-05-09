@@ -30,6 +30,12 @@ export default function GlobeApp({ records }: Props) {
   });
   const [modalRecords, setModalRecords] = useState<Record[] | null>(null);
   const [queueType, setQueueType] = useState<QueueType | null>(null);
+  const [touchPreview, setTouchPreview] = useState<{
+    rec: Record;
+    x: number;
+    y: number;
+  } | null>(null);
+  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -190,8 +196,7 @@ export default function GlobeApp({ records }: Props) {
     [records, active.vid],
   );
 
-  function onPointClick(point: object) {
-    const p = point as Record;
+  function openLocationModal(p: Record) {
     if (!p.location) return;
     const same = records.filter(
       (r) =>
@@ -208,6 +213,58 @@ export default function GlobeApp({ records }: Props) {
       );
     }
   }
+
+  function onPointClick(point: object, event?: MouseEvent) {
+    const p = point as Record;
+    if (!p.location) return;
+
+    // Touch devices: first tap previews (like desktop hover), second tap opens.
+    if (isTouch) {
+      if (touchPreview && touchPreview.rec.id === p.id) {
+        // confirmed tap → open
+        setTouchPreview(null);
+        if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+        openLocationModal(p);
+        return;
+      }
+      // first tap → show preview overlay near tap location
+      const x = event?.clientX ?? window.innerWidth / 2;
+      const y = event?.clientY ?? window.innerHeight / 2;
+      setTouchPreview({ rec: p, x, y });
+      // gently fly the globe to the previewed pin
+      if (globeRef.current && p.location) {
+        globeRef.current.pointOfView(
+          { lat: p.location.lat, lng: p.location.lng, altitude: 2.1 },
+          700,
+        );
+      }
+      // auto-dismiss after 6 seconds if no second tap
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      previewTimerRef.current = setTimeout(() => setTouchPreview(null), 6000);
+      return;
+    }
+
+    // Desktop: open modal directly
+    openLocationModal(p);
+  }
+
+  // dismiss touch preview when user taps anywhere outside a pin
+  useEffect(() => {
+    if (!touchPreview) return;
+    function dismiss(e: PointerEvent) {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest?.(".touch-preview")) return; // click was on preview itself — let onClick handle
+      setTouchPreview(null);
+    }
+    // delay one tick so the originating tap doesn't immediately dismiss
+    const t = setTimeout(() => {
+      window.addEventListener("pointerdown", dismiss);
+    }, 50);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("pointerdown", dismiss);
+    };
+  }, [touchPreview]);
 
   return (
     <>
@@ -248,13 +305,62 @@ export default function GlobeApp({ records }: Props) {
           pointsData={points}
           pointLat={(d: any) => d.location.lat}
           pointLng={(d: any) => d.location.lng}
-          pointAltitude={0.012}
+          /* float pins visibly above the surface — gives parallax / 3D feel */
+          pointAltitude={(d: any) => (d.location.regional ? 0.045 : 0.035)}
           pointRadius={(d: any) => {
-            const base = d.location.regional ? 0.55 : 0.42;
+            const base = d.location.regional ? 0.85 : 0.7;
             // Touch devices need a much larger hit area to register reliably.
-            return isTouch ? base * 2.0 : base;
+            return isTouch ? base * 1.8 : base;
           }}
+          pointResolution={14}
           pointColor={(d: any) => COLORS[d.mediaType as MediaType]}
+          /* glowing beam under each pin connecting to the surface */
+          customLayerData={points}
+          customThreeObject={(d: any) => {
+            const color = new THREE.Color(COLORS[d.mediaType as MediaType]);
+            const geo = new THREE.CylinderGeometry(0.18, 0.32, 1, 6, 1, true);
+            const mat = new THREE.MeshBasicMaterial({
+              color,
+              transparent: true,
+              opacity: 0.55,
+              depthWrite: false,
+            });
+            const beam = new THREE.Mesh(geo, mat);
+            // also a small base disc on the surface for grounding
+            const baseGeo = new THREE.CircleGeometry(0.55, 16);
+            const baseMat = new THREE.MeshBasicMaterial({
+              color,
+              transparent: true,
+              opacity: 0.4,
+              depthWrite: false,
+            });
+            const base = new THREE.Mesh(baseGeo, baseMat);
+            base.rotateX(-Math.PI / 2); // lay flat
+            base.position.y = -0.5; // sit at surface end of cylinder
+            beam.add(base);
+            beam.userData = { mediaType: d.mediaType };
+            return beam;
+          }}
+          customThreeObjectUpdate={(obj: any, d: any) => {
+            if (!globeRef.current) return;
+            const altitude = d.location.regional ? 0.045 : 0.035;
+            const tip = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, altitude);
+            const surf = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, 0);
+            // place at midpoint between surface and pin tip
+            obj.position.set(
+              (tip.x + surf.x) / 2,
+              (tip.y + surf.y) / 2,
+              (tip.z + surf.z) / 2,
+            );
+            // scale length to match altitude (globe radius ~100 in scene units)
+            const length = Math.sqrt(
+              (tip.x - surf.x) ** 2 + (tip.y - surf.y) ** 2 + (tip.z - surf.z) ** 2,
+            );
+            obj.scale.set(1, length, 1);
+            // align cylinder Y axis along the surface normal (radially outward)
+            obj.lookAt(0, 0, 0);
+            obj.rotateX(Math.PI / 2);
+          }}
           pointLabel={(d: any) => `
             <div class="pin-tooltip">
               <div class="loc">${escapeHtml(d.location.name)}</div>
@@ -273,6 +379,25 @@ export default function GlobeApp({ records }: Props) {
         />
       </div>
 
+      {/* mobile single-tap preview (tap again to open) */}
+      {touchPreview && (
+        <TouchPreview
+          record={touchPreview.rec}
+          x={touchPreview.x}
+          y={touchPreview.y}
+          onConfirm={() => {
+            const r = touchPreview.rec;
+            setTouchPreview(null);
+            if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+            openLocationModal(r);
+          }}
+          onDismiss={() => {
+            setTouchPreview(null);
+            if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+          }}
+        />
+      )}
+
       {/* modal */}
       {modalRecords && (
         <RecordModal records={modalRecords} onClose={() => setModalRecords(null)} />
@@ -288,6 +413,141 @@ export default function GlobeApp({ records }: Props) {
         />
       )}
     </>
+  );
+}
+
+interface TouchPreviewProps {
+  record: Record;
+  x: number;
+  y: number;
+  onConfirm: () => void;
+  onDismiss: () => void;
+}
+
+function TouchPreview({ record: r, x, y, onConfirm, onDismiss }: TouchPreviewProps) {
+  // clamp position so the bubble doesn't fall off-screen
+  const margin = 12;
+  const bubbleW = 240;
+  const bubbleH = 120;
+  const cx = Math.min(Math.max(x, bubbleW / 2 + margin), window.innerWidth - bubbleW / 2 - margin);
+  const cy = Math.max(y - 16, bubbleH + margin);
+
+  return (
+    <div
+      className={`touch-preview ${r.mediaType}`}
+      style={{ left: cx, top: cy }}
+      onClick={onConfirm}
+    >
+      <div className="touch-preview-loc">⊙ {r.location?.name}</div>
+      <div className="touch-preview-title">{truncate(r.title, 80)}</div>
+      <div className="touch-preview-meta">
+        {r.agency}
+        {r.year ? ` · ${r.year}` : ""}
+      </div>
+      <div className="touch-preview-hint">TAP AGAIN TO OPEN ▸</div>
+      <button
+        className="touch-preview-close"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDismiss();
+        }}
+        aria-label="Dismiss"
+      >
+        ✕
+      </button>
+
+      <style>{`
+        .touch-preview {
+          position: fixed;
+          width: 240px;
+          background: rgba(4,6,11,.95);
+          border: 1px solid var(--color-hud);
+          border-radius: 4px;
+          padding: 10px 12px 10px;
+          color: #e8edf3;
+          font-family: var(--font-mono);
+          font-size: 11px;
+          z-index: 35;
+          backdrop-filter: blur(8px);
+          box-shadow:
+            0 0 18px rgba(106,255,200,.35),
+            0 8px 24px rgba(0,0,0,.6);
+          transform: translate(-50%, -100%);
+          cursor: pointer;
+          animation: touch-preview-in .15s ease-out;
+        }
+        @keyframes touch-preview-in {
+          from { opacity: 0; transform: translate(-50%, calc(-100% + 8px)); }
+          to   { opacity: 1; transform: translate(-50%, -100%); }
+        }
+        .touch-preview.vid { border-color: var(--color-vid); box-shadow: 0 0 18px rgba(255,59,59,.4), 0 8px 24px rgba(0,0,0,.6); }
+        .touch-preview.img { border-color: var(--color-img); box-shadow: 0 0 18px rgba(90,215,255,.4), 0 8px 24px rgba(0,0,0,.6); }
+        .touch-preview.pdf { border-color: var(--color-pdf); box-shadow: 0 0 18px rgba(255,200,112,.35), 0 8px 24px rgba(0,0,0,.6); }
+        /* little arrow pointing at the pin below */
+        .touch-preview::after {
+          content: '';
+          position: absolute;
+          left: 50%; bottom: -7px;
+          transform: translateX(-50%) rotate(45deg);
+          width: 12px; height: 12px;
+          background: rgba(4,6,11,.95);
+          border-right: 1px solid currentColor;
+          border-bottom: 1px solid currentColor;
+          color: var(--color-hud);
+        }
+        .touch-preview.vid::after { color: var(--color-vid); }
+        .touch-preview.img::after { color: var(--color-img); }
+        .touch-preview.pdf::after { color: var(--color-pdf); }
+        .touch-preview-loc {
+          font-size: 9px;
+          letter-spacing: .2em;
+          text-transform: uppercase;
+          color: var(--color-hud);
+          margin-bottom: 4px;
+          padding-right: 18px;
+        }
+        .touch-preview.vid .touch-preview-loc { color: var(--color-vid); }
+        .touch-preview.img .touch-preview-loc { color: var(--color-img); }
+        .touch-preview.pdf .touch-preview-loc { color: var(--color-pdf); }
+        .touch-preview-title {
+          font-size: 12px;
+          line-height: 1.35;
+          font-weight: 600;
+          margin-bottom: 4px;
+          padding-right: 18px;
+        }
+        .touch-preview-meta {
+          font-size: 9px;
+          letter-spacing: .12em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,.55);
+          margin-bottom: 8px;
+        }
+        .touch-preview-hint {
+          font-size: 9px;
+          letter-spacing: .2em;
+          color: var(--color-hud);
+          padding-top: 6px;
+          border-top: 1px dashed rgba(106,255,200,.2);
+        }
+        .touch-preview.vid .touch-preview-hint { color: var(--color-vid); border-top-color: rgba(255,59,59,.25); }
+        .touch-preview.img .touch-preview-hint { color: var(--color-img); border-top-color: rgba(90,215,255,.25); }
+        .touch-preview.pdf .touch-preview-hint { color: var(--color-pdf); border-top-color: rgba(255,200,112,.22); }
+        .touch-preview-close {
+          position: absolute;
+          top: 6px; right: 6px;
+          width: 22px; height: 22px;
+          border: 0;
+          background: transparent;
+          color: rgba(255,255,255,.5);
+          font-family: var(--font-mono);
+          font-size: 11px;
+          cursor: pointer;
+          border-radius: 2px;
+        }
+        .touch-preview-close:hover { color: #fff; background: rgba(255,255,255,.08); }
+      `}</style>
+    </div>
   );
 }
 
