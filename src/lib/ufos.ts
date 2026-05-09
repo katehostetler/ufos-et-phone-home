@@ -10,13 +10,21 @@
 
 // ─── UFO pool ────────────────────────────────────────────────────────────────
 
-export type UfoKind = "orb" | "saucer";
+/**
+ * Two iconic UFO silhouettes:
+ *  - "saucer": classic flying saucer (thin disc + dome + rim lights)
+ *  - "tictac": Navy-style tic-tac (smooth elongated capsule)
+ *
+ * Abstract glowing orbs were removed — at small sizes they read as smudges,
+ * not spaceships. These two shapes are unmistakable at a glance.
+ */
+export type UfoKind = "saucer" | "tictac";
 
 export interface UfoSpec {
   kind: UfoKind;
-  /** emissive color hex */
+  /** body color hex */
   color: string;
-  /** 0-1 base opacity of the emissive glow */
+  /** 0-1 base opacity of the emissive rim/glow accents */
   glowIntensity: number;
   /** lat range for spawning: [min, max] */
   latRange: [number, number];
@@ -26,115 +34,72 @@ export interface UfoSpec {
   altitude: number;
   /** seconds the UFO stays alive before despawning */
   lifespan: number;
-  /** radians per second for saucer spin */
+  /** radians per second for saucer spin / tic-tac wobble */
   spinSpeed: number;
-  /** seconds per pulse cycle for orb */
-  pulseSpeed: number;
   /** drift speed in degrees/second */
   driftSpeed: number;
 }
 
 /**
- * The starter pool of 8 UFO specs.
- * Mix of orbs and saucers. All pale/neutral tones that don't clash
- * with the pin colors (red / cyan-blue / gold).
+ * Curated pool of UFO specs. Saucer-heavy (the more iconic silhouette),
+ * with a couple of tic-tacs mixed in. All pale/neutral tones that don't
+ * clash with the pin palette (red / cyan-blue / gold).
  */
 export const UFO_POOL: UfoSpec[] = [
   {
-    kind: "orb",
-    color: "#b8ffe0",   // pale mint
-    glowIntensity: 0.75,
-    latRange: [-50, 50],
-    lngRange: [-180, 180],
-    altitude: 0.18,
-    lifespan: 18,
-    spinSpeed: 0,
-    pulseSpeed: 1.8,
-    driftSpeed: 3.5,
-  },
-  {
     kind: "saucer",
-    color: "#d4c8ff",   // pale lavender
-    glowIntensity: 0.6,
+    color: "#d4c8ff", // pale lavender
+    glowIntensity: 0.7,
     latRange: [-45, 45],
     lngRange: [-180, 180],
     altitude: 0.22,
-    lifespan: 22,
-    spinSpeed: 0.8,
-    pulseSpeed: 0,
+    lifespan: 16,
+    spinSpeed: 0.9,
     driftSpeed: 2.8,
   },
   {
-    kind: "orb",
-    color: "#e8f4ff",   // very pale ice blue
-    glowIntensity: 0.5,
-    latRange: [-60, 60],
-    lngRange: [-180, 180],
-    altitude: 0.15,
-    lifespan: 15,
-    spinSpeed: 0,
-    pulseSpeed: 2.4,
-    driftSpeed: 4.2,
-  },
-  {
     kind: "saucer",
-    color: "#ffe8b0",   // pale warm white (not gold — lower saturation)
-    glowIntensity: 0.55,
+    color: "#ffe8b0", // pale warm white
+    glowIntensity: 0.65,
     latRange: [-40, 40],
     lngRange: [-180, 180],
     altitude: 0.25,
-    lifespan: 20,
-    spinSpeed: 1.1,
-    pulseSpeed: 0,
+    lifespan: 14,
+    spinSpeed: 1.2,
     driftSpeed: 3.0,
   },
   {
-    kind: "orb",
-    color: "#c8ffe8",   // ghostly pale green
-    glowIntensity: 0.7,
-    latRange: [-55, 55],
-    lngRange: [-180, 180],
-    altitude: 0.20,
-    lifespan: 16,
-    spinSpeed: 0,
-    pulseSpeed: 1.5,
-    driftSpeed: 3.8,
-  },
-  {
     kind: "saucer",
-    color: "#f0e8ff",   // pale violet
-    glowIntensity: 0.5,
-    latRange: [-35, 35],
-    lngRange: [-180, 180],
-    altitude: 0.28,
-    lifespan: 24,
-    spinSpeed: 0.6,
-    pulseSpeed: 0,
-    driftSpeed: 2.5,
-  },
-  {
-    kind: "orb",
-    color: "#fffbe0",   // pale cream white
-    glowIntensity: 0.45,
-    latRange: [-65, 65],
-    lngRange: [-180, 180],
-    altitude: 0.16,
-    lifespan: 14,
-    spinSpeed: 0,
-    pulseSpeed: 2.0,
-    driftSpeed: 5.0,
-  },
-  {
-    kind: "saucer",
-    color: "#b8f0ff",   // pale sky (not the #5ad7ff img-pin blue — lighter)
-    glowIntensity: 0.65,
+    color: "#b8f0ff", // pale sky
+    glowIntensity: 0.75,
     latRange: [-42, 42],
     lngRange: [-180, 180],
     altitude: 0.23,
-    lifespan: 19,
-    spinSpeed: 0.9,
-    pulseSpeed: 0,
+    lifespan: 15,
+    spinSpeed: 1.0,
     driftSpeed: 3.2,
+  },
+  {
+    kind: "tictac",
+    color: "#f4f0e8", // matte off-white
+    glowIntensity: 0.55,
+    latRange: [-35, 35],
+    lngRange: [-180, 180],
+    altitude: 0.24,
+    lifespan: 13,
+    spinSpeed: 0.4,
+    driftSpeed: 5.5, // tic-tacs move noticeably faster
+  },
+  {
+    kind: "tictac",
+    color: "#e8e8f0", // cool silver-white
+    glowIntensity: 0.5,
+    latRange: [-30, 30],
+    lngRange: [-180, 180],
+    altitude: 0.27,
+    lifespan: 12,
+    spinSpeed: 0.3,
+    driftSpeed: 6.0,
   },
 ];
 

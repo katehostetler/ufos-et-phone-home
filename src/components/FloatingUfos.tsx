@@ -37,42 +37,131 @@ interface UfoMeshData {
   geos: THREE.BufferGeometry[];
   /** Materials to dispose */
   mats: THREE.Material[];
-  /** Sprite textures to dispose (for orb halo) */
+  /** Sprite textures to dispose */
   textures: THREE.Texture[];
 }
 
-function buildOrbMesh(spec: UfoSpec): UfoMeshData {
+/**
+ * Classic flying saucer: thin disc + prominent half-sphere dome on top +
+ * a ring of bright emissive lights around the rim. Sized small (~6 units
+ * across) so it reads as a craft, not a smear.
+ *
+ * Globe scene units: globe is ~100-unit radius; UFO altitude ~0.22 puts
+ * the saucer at ~122 units from camera-near-side.
+ */
+function buildSaucerMesh(spec: UfoSpec): UfoMeshData {
   const color = new THREE.Color(spec.color);
   const geos: THREE.BufferGeometry[] = [];
   const mats: THREE.Material[] = [];
   const textures: THREE.Texture[] = [];
   const group = new THREE.Group();
 
-  // Globe scene units: the globe is rendered at ~100 unit radius.
-  // UFOs sit at altitude ~0.15-0.28 = ~115-128 units from center.
-  // Visible orb needs to be ~4-6 units to show up clearly.
-
-  // Core sphere
-  const coreGeo = new THREE.SphereGeometry(4.0, 12, 12);
-  geos.push(coreGeo);
-  const coreMat = new THREE.MeshBasicMaterial({
+  // Thin disc body — wider top edge tapering down (classic saucer profile)
+  const bodyGeo = new THREE.CylinderGeometry(3.0, 2.2, 0.5, 24, 1, false);
+  geos.push(bodyGeo);
+  const bodyMat = new THREE.MeshBasicMaterial({
     color,
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.95,
   });
-  mats.push(coreMat);
-  const core = new THREE.Mesh(coreGeo, coreMat);
-  group.add(core);
+  mats.push(bodyMat);
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  group.add(body);
 
-  // Additive halo Sprite — gives soft glow
+  // Prominent half-sphere dome — proportionally taller than before so the
+  // saucer silhouette is unmistakable
+  const domeGeo = new THREE.SphereGeometry(1.7, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
+  geos.push(domeGeo);
+  const domeMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(spec.color).offsetHSL(0, -0.1, 0.18),
+    transparent: true,
+    opacity: 0.8,
+  });
+  mats.push(domeMat);
+  const dome = new THREE.Mesh(domeGeo, domeMat);
+  dome.position.y = 0.25;
+  group.add(dome);
+
+  // Bright emissive rim lights — 8 dots, brighter than before so they read
+  // as windows / running lights at small scale
+  const dotGeo = new THREE.SphereGeometry(0.32, 8, 8);
+  geos.push(dotGeo);
+  const dotMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(spec.color).offsetHSL(0, 0.2, 0.4),
+    transparent: true,
+    opacity: Math.min(1, spec.glowIntensity + 0.3),
+  });
+  mats.push(dotMat);
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    const dot = new THREE.Mesh(dotGeo, dotMat);
+    dot.position.set(Math.cos(angle) * 2.7, -0.05, Math.sin(angle) * 2.7);
+    group.add(dot);
+  }
+
+  // Tiny down-light underneath — sells the "craft hovering" read
+  const underGeo = new THREE.SphereGeometry(0.45, 8, 8);
+  geos.push(underGeo);
+  const underMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(spec.color).offsetHSL(0, 0.3, 0.5),
+    transparent: true,
+    opacity: spec.glowIntensity,
+  });
+  mats.push(underMat);
+  const underLight = new THREE.Mesh(underGeo, underMat);
+  underLight.position.y = -0.3;
+  group.add(underLight);
+
+  return { mesh: group, geos, mats, textures };
+}
+
+/**
+ * Tic-tac shape (Navy UAP style): smooth elongated capsule, no wings,
+ * no markings. Scaled small (~4.5 units long) and matte-white.
+ */
+function buildTicTacMesh(spec: UfoSpec): UfoMeshData {
+  const color = new THREE.Color(spec.color);
+  const geos: THREE.BufferGeometry[] = [];
+  const mats: THREE.Material[] = [];
+  const textures: THREE.Texture[] = [];
+  const group = new THREE.Group();
+
+  // Capsule = cylinder + two hemispheres. Three.js has CapsuleGeometry,
+  // but build it manually so disposal is uniform.
+  const len = 3.0; // cylinder length
+  const r = 0.9;   // capsule radius
+
+  const cylGeo = new THREE.CylinderGeometry(r, r, len, 18, 1, false);
+  geos.push(cylGeo);
+  const bodyMat = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.95,
+  });
+  mats.push(bodyMat);
+  const cyl = new THREE.Mesh(cylGeo, bodyMat);
+  // Lay it on its side — long axis along X
+  cyl.rotation.z = Math.PI / 2;
+  group.add(cyl);
+
+  const capGeo = new THREE.SphereGeometry(r, 14, 10);
+  geos.push(capGeo);
+  const capA = new THREE.Mesh(capGeo, bodyMat);
+  capA.position.x = len / 2;
+  group.add(capA);
+  const capB = new THREE.Mesh(capGeo, bodyMat);
+  capB.position.x = -len / 2;
+  group.add(capB);
+
+  // Faint additive halo so it pops against dark ocean — sized to the body
   const canvas = document.createElement("canvas");
   canvas.width = 64;
   canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
   const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  grad.addColorStop(0, `rgba(255,255,255,0.9)`);
-  grad.addColorStop(0.3, `rgba(255,255,255,0.4)`);
-  grad.addColorStop(1, `rgba(255,255,255,0)`);
+  grad.addColorStop(0, "rgba(255,255,255,0.55)");
+  grad.addColorStop(0.4, "rgba(255,255,255,0.18)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 64, 64);
   const tex = new THREE.CanvasTexture(canvas);
@@ -87,62 +176,8 @@ function buildOrbMesh(spec: UfoSpec): UfoMeshData {
   });
   mats.push(spriteMat);
   const sprite = new THREE.Sprite(spriteMat);
-  sprite.scale.setScalar(16.0);
+  sprite.scale.set(7, 3.5, 1);
   group.add(sprite);
-
-  return { mesh: group, geos, mats, textures };
-}
-
-function buildSaucerMesh(spec: UfoSpec): UfoMeshData {
-  const color = new THREE.Color(spec.color);
-  const geos: THREE.BufferGeometry[] = [];
-  const mats: THREE.Material[] = [];
-  const textures: THREE.Texture[] = [];
-  const group = new THREE.Group();
-
-  // Globe scene units: globe ~100 unit radius. Saucer at ~115 units from center.
-  // Body needs to be 4-7 units wide to be visible.
-
-  // Flat body disc
-  const bodyGeo = new THREE.CylinderGeometry(5.5, 4.5, 1.5, 20, 1, false);
-  geos.push(bodyGeo);
-  const bodyMat = new THREE.MeshBasicMaterial({
-    color,
-    transparent: true,
-    opacity: 0.85,
-  });
-  mats.push(bodyMat);
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  group.add(body);
-
-  // Small dome on top
-  const domeGeo = new THREE.SphereGeometry(2.8, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-  geos.push(domeGeo);
-  const domeMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(spec.color).offsetHSL(0, 0, 0.15),
-    transparent: true,
-    opacity: 0.7,
-  });
-  mats.push(domeMat);
-  const dome = new THREE.Mesh(domeGeo, domeMat);
-  dome.position.y = 1.2;
-  group.add(dome);
-
-  // Rim emissive dots (tiny spheres around the edge)
-  const dotGeo = new THREE.SphereGeometry(0.5, 6, 6);
-  geos.push(dotGeo);
-  const dotMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(spec.color).offsetHSL(0, 0.1, 0.3),
-    transparent: true,
-    opacity: 0.9,
-  });
-  mats.push(dotMat);
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI * 2;
-    const dot = new THREE.Mesh(dotGeo, dotMat);
-    dot.position.set(Math.cos(angle) * 4.8, 0, Math.sin(angle) * 4.8);
-    group.add(dot);
-  }
 
   return { mesh: group, geos, mats, textures };
 }
@@ -223,10 +258,13 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
       groupRef.current = group;
       scene.add(group);
 
+      // Rare-sighting cadence: at most ONE craft on screen at any moment,
+      // and a long cool-down between spawn attempts. Each saucer/tic-tac
+      // lives ~12-16s, so most of the time you'll see 0 or 1.
       const spawnManager = makeSpawnManager({
-        cap: 3,
+        cap: 1,
         now: performance.now(),
-        spawnIntervalMs: 4000,
+        spawnIntervalMs: 12000,
       });
 
       let lastFrameTime = performance.now();
@@ -255,8 +293,8 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
         // Add spawned
         for (const ufo of spawned) {
           const meshData =
-            ufo.spec.kind === "orb"
-              ? buildOrbMesh(ufo.spec)
+            ufo.spec.kind === "tictac"
+              ? buildTicTacMesh(ufo.spec)
               : buildSaucerMesh(ufo.spec);
           group.add(meshData.mesh);
           sceneUfosRef.current.set(ufo.id, {
@@ -307,15 +345,14 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
           entry.meshData.mesh.rotateX(-Math.PI / 2);
 
           if (!reducedMotion.current) {
-            const age = (now - entry.spawnedAt) / 1000;
-
-            if (entry.data.spec.kind === "orb") {
-              // Pulse: vary scale of the core sphere
-              const pulseFactor = 0.85 + 0.15 * Math.sin(age * entry.data.spec.pulseSpeed * Math.PI * 2);
-              entry.meshData.mesh.scale.setScalar(pulseFactor);
-            } else if (entry.data.spec.kind === "saucer") {
-              // Slow rotation around local up (Y after the orient transform)
+            // Saucers spin around their local up axis; tic-tacs gently wobble
+            // (subtle pitch + roll) so they don't read as static pills.
+            if (entry.data.spec.kind === "saucer") {
               entry.meshData.mesh.rotateY(entry.data.spec.spinSpeed * dtSec);
+            } else {
+              const age = (now - entry.spawnedAt) / 1000;
+              const wobble = Math.sin(age * entry.data.spec.spinSpeed * Math.PI * 2) * 0.08;
+              entry.meshData.mesh.rotateZ(wobble * dtSec);
             }
           }
         }

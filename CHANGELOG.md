@@ -4,6 +4,17 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 
 ---
 
+## 2026-05-09
+
+### Changed
+- Floating UFOs easter egg: redesigned the craft so the silhouettes actually read as spaceships. Removed the abstract glowing "orb" kind entirely — at small scale it read as a smudge, not a craft. The pool is now a curated mix of two iconic shapes: a **classic flying saucer** (thin disc + prominent half-sphere dome + ring of 8 emissive rim lights + a small underbelly down-light) and a **Navy-style tic-tac** (smooth elongated capsule with a faint additive halo). Both are matte-pale to stay off the pin palette.
+- Floating UFOs sized down ~50% (saucer body 5.5 → 3.0 units across, tic-tac ~4.5 units long) so they feel like distant craft rather than dominating the scene.
+- Floating UFOs are now noticeably rarer: hard cap dropped from 3 concurrent → **1 at a time**, and the spawn-attempt interval went from 4s → **12s**, so most of the time you'll see 0 or 1 craft. Lifespans tightened to 12-16s so each sighting is a brief moment, not a constant presence.
+- Tic-tacs drift faster than saucers (5.5-6 deg/s vs 2.8-3.2) and gently wobble instead of spinning — keeps them feeling distinct from the saucers.
+- Updated `tests/ufos.test.ts` for the new pool: asserts both `saucer` and `tictac` kinds exist, dropped the orb assertion, lowered the minimum-pool-size floor (≥4).
+
+---
+
 ## 2026-05-08
 
 ### Added

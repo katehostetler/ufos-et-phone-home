@@ -19,19 +19,19 @@ function makeLcg(seed: number) {
 // ── Pool ─────────────────────────────────────────────────────────────────────
 
 describe("UFO_POOL", () => {
-  it("contains at least 6 entries", () => {
-    expect(UFO_POOL.length).toBeGreaterThanOrEqual(6);
+  it("contains at least 4 entries", () => {
+    expect(UFO_POOL.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("contains both 'orb' and 'saucer' kinds", () => {
+  it("contains both 'saucer' and 'tictac' kinds", () => {
     const kinds = new Set(UFO_POOL.map((u) => u.kind));
-    expect(kinds.has("orb")).toBe(true);
     expect(kinds.has("saucer")).toBe(true);
+    expect(kinds.has("tictac")).toBe(true);
   });
 
   it("all entries have valid structure", () => {
     for (const spec of UFO_POOL) {
-      expect(["orb", "saucer"]).toContain(spec.kind);
+      expect(["saucer", "tictac"]).toContain(spec.kind);
       expect(spec.color).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(spec.glowIntensity).toBeGreaterThan(0);
       expect(spec.glowIntensity).toBeLessThanOrEqual(1);
