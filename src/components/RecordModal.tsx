@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Record } from "@/types/record";
 
 interface Props {
@@ -11,9 +11,21 @@ interface Props {
 
 const TYPE_LABEL = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
 
+// Once we learn /api/tts isn't available (404 on a static deploy, or quota
+// exhausted, etc.) stop hammering it and just use the browser voice for the
+// rest of the session. `null` = not yet probed.
+let elevenLabsAvailable: boolean | null = null;
+
 export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: Props) {
   const [idx, setIdx] = useState(0);
   const [speaking, setSpeaking] = useState(false);
+  // Tracks which engine narrated last so we can show a small credit line.
+  const [ttsEngine, setTtsEngine] = useState<"elevenlabs" | "browser" | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  // Bumped on every play start AND every stop, so an in-flight TTS request that
+  // resolves after the user hit STOP (or changed record) becomes a no-op.
+  const playTokenRef = useRef(0);
   const rec = records[idx];
 
   useEffect(() => {
@@ -26,15 +38,27 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     return () => window.removeEventListener("keydown", onKey);
   }, [records.length, onClose]);
 
-  // Stop TTS whenever the active record changes or the modal closes.
-  useEffect(() => {
-    return () => {
-      if (typeof window !== "undefined") window.speechSynthesis?.cancel?.();
-    };
-  }, []);
-  useEffect(() => {
+  function stopSpeech() {
+    playTokenRef.current++;
     if (typeof window !== "undefined") window.speechSynthesis?.cancel?.();
+    const a = audioRef.current;
+    if (a) {
+      a.pause();
+      a.src = "";
+      audioRef.current = null;
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current);
+      audioUrlRef.current = null;
+    }
     setSpeaking(false);
+  }
+
+  // Stop TTS whenever the active record changes or the modal closes.
+  useEffect(() => stopSpeech, []);
+  useEffect(() => {
+    stopSpeech();
+    setTtsEngine(null);
   }, [idx]);
 
   // Pick the best available English voice. Priority — top is best:
@@ -78,10 +102,9 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     });
   }
 
-  async function speakBlurb() {
-    if (typeof window === "undefined" || !window.speechSynthesis || !rec.blurb) return;
-    if (speaking) {
-      window.speechSynthesis.cancel();
+  // Browser speechSynthesis fallback.
+  async function speakViaBrowser() {
+    if (typeof window === "undefined" || !window.speechSynthesis || !rec.blurb) {
       setSpeaking(false);
       return;
     }
@@ -99,10 +122,77 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
       // re-pick a default voice for the utterance's lang field.
       utt.lang = preferred.lang;
     }
-    utt.onend = () => setSpeaking(false);
-    utt.onerror = () => setSpeaking(false);
+    utt.onend = () => { setSpeaking(false); };
+    utt.onerror = () => { setSpeaking(false); };
     window.speechSynthesis.speak(utt);
     setSpeaking(true);
+    setTtsEngine("browser");
+  }
+
+  // Try the ElevenLabs proxy. Returns "played" on success, "fallback" if the
+  // service is unavailable (so the caller falls back to the browser voice), or
+  // "cancelled" if the user stopped / changed record while the request was in
+  // flight (the caller should do nothing).
+  async function speakViaElevenLabs(token: number): Promise<"played" | "fallback" | "cancelled"> {
+    if (elevenLabsAvailable === false) return "fallback";
+    let res: Response;
+    try {
+      res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text: rec.blurb }),
+      });
+    } catch {
+      elevenLabsAvailable = false;
+      return "fallback";
+    }
+    if (token !== playTokenRef.current) return "cancelled";
+    if (!res.ok || !(res.headers.get("content-type") || "").includes("audio")) {
+      // 503 (not configured) / 404 (static deploy) / 429 (quota) — stop trying.
+      // A transient 5xx (502) we'll allow to retry next time.
+      if (res.status !== 502) elevenLabsAvailable = false;
+      return "fallback";
+    }
+    elevenLabsAvailable = true;
+    const buf = await res.arrayBuffer();
+    if (token !== playTokenRef.current) return "cancelled";
+    const url = URL.createObjectURL(new Blob([buf], { type: "audio/mpeg" }));
+    const audio = new Audio(url);
+    audio.onended = () => stopSpeech();
+    audio.onerror = () => stopSpeech();
+    try {
+      await audio.play();
+    } catch {
+      URL.revokeObjectURL(url);
+      return "fallback";
+    }
+    if (token !== playTokenRef.current) {
+      audio.pause();
+      URL.revokeObjectURL(url);
+      return "cancelled";
+    }
+    audioRef.current = audio;
+    audioUrlRef.current = url;
+    setSpeaking(true);
+    setTtsEngine("elevenlabs");
+    return "played";
+  }
+
+  async function speakBlurb() {
+    if (!rec.blurb) return;
+    if (speaking) {
+      stopSpeech();
+      return;
+    }
+    const token = ++playTokenRef.current;
+    setSpeaking(true); // optimistic — button flips while the request is in flight
+    const result = await speakViaElevenLabs(token);
+    if (result === "cancelled") return;
+    if (result === "played") return;
+    // ElevenLabs unavailable — make sure the optimistic state is still ours,
+    // then fall back to the browser voice.
+    if (token !== playTokenRef.current) return;
+    await speakViaBrowser();
   }
 
   if (!rec) return null;
@@ -173,15 +263,28 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
 
           {rec.blurb && (
             <div className="modal-blurb-block">
-              <button
-                className={`tts-btn ${speaking ? "playing" : ""}`}
-                onClick={speakBlurb}
-                aria-label={speaking ? "Stop reading" : "Read aloud"}
-                title={speaking ? "Stop reading" : "Read aloud"}
-              >
-                <span className="tts-icon">{speaking ? "■" : "▶"}</span>
-                <span className="tts-label">{speaking ? "STOP" : "LISTEN"}</span>
-              </button>
+              <div className="tts-controls">
+                <button
+                  className={`tts-btn ${speaking ? "playing" : ""}`}
+                  onClick={speakBlurb}
+                  aria-label={speaking ? "Stop reading" : "Read aloud"}
+                  title={speaking ? "Stop reading" : "Read aloud"}
+                >
+                  <span className="tts-icon">{speaking ? "■" : "▶"}</span>
+                  <span className="tts-label">{speaking ? "STOP" : "LISTEN"}</span>
+                </button>
+                {ttsEngine === "elevenlabs" && (
+                  <a
+                    className="tts-credit"
+                    href="https://elevenlabs.io/text-to-speech"
+                    target="_blank"
+                    rel="noopener"
+                    title="Narration generated with ElevenLabs"
+                  >
+                    voice · ElevenLabs
+                  </a>
+                )}
+              </div>
               <p className="modal-blurb">{rec.blurb}</p>
             </div>
           )}
@@ -379,9 +482,24 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           line-height: 1.65;
           color: #d8dde6;
         }
-        .tts-btn {
+        .tts-controls {
           float: right;
           margin: 0 0 6px 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          gap: 4px;
+        }
+        .tts-credit {
+          font-family: var(--font-mono);
+          font-size: 7.5px;
+          letter-spacing: .14em;
+          text-transform: uppercase;
+          color: rgba(106,255,200,.45);
+          text-decoration: none;
+        }
+        .tts-credit:hover { color: var(--color-hud); }
+        .tts-btn {
           display: inline-flex;
           align-items: center;
           gap: 6px;

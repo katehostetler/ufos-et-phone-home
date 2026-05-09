@@ -35,6 +35,7 @@ const counts = {
       <li>Incident-Location strings are geocoded with a static lookup table (committed to the repo) — see <code>data/location-lookup.json</code>.</li>
       <li>Regional locations (e.g. "Middle East", "Indo-PACOM") are flagged and rendered as larger pins to avoid implying false precision.</li>
       <li>Videos are embedded from DVIDS using their public iframe API.</li>
+      <li>The "LISTEN" narration uses <a href="https://elevenlabs.io/text-to-speech" target="_blank" rel="noopener">ElevenLabs</a> text-to-speech (with a fallback to the browser's built-in voice).</li>
     </ul>
 
     <h2>Source</h2>
