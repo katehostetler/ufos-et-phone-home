@@ -113,9 +113,11 @@ describe("HallOfFameOverlay", () => {
       dispatchEvent: () => false,
     }) as unknown as MediaQueryList;
 
-    const { container } = render(<HallOfFameOverlay featured={featured} />);
+    render(<HallOfFameOverlay featured={featured} />);
     fireEvent(window, new Event("open-hall-of-fame"));
-    const rail = container.querySelector(".hof-rail");
+    // The overlay is portalled to <body>, so query the document, not the render container.
+    const rail = document.querySelector(".hof-rail");
+    expect(rail).not.toBeNull();
     expect(rail?.classList.contains("is-staggered")).toBe(false);
 
     window.matchMedia = origMatchMedia;
@@ -123,9 +125,10 @@ describe("HallOfFameOverlay", () => {
 
   it("includes is-staggered when motion is allowed", () => {
     // matchMedia returns matches:false (default setup)
-    const { container } = render(<HallOfFameOverlay featured={featured} />);
+    render(<HallOfFameOverlay featured={featured} />);
     fireEvent(window, new Event("open-hall-of-fame"));
-    const rail = container.querySelector(".hof-rail");
+    const rail = document.querySelector(".hof-rail");
+    expect(rail).not.toBeNull();
     expect(rail?.classList.contains("is-staggered")).toBe(true);
   });
 });

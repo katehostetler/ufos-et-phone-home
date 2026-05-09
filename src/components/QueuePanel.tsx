@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import Portal from "./Portal";
 import type { Record, MediaType } from "@/types/record";
 
 type QueueType = MediaType | "noloc";
@@ -71,16 +72,19 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
 
   if (!active) {
     return (
+      <Portal>
       <div className="queue-backdrop" onClick={onClose}>
         <div className="queue queue-empty" onClick={(e) => e.stopPropagation()}>
           <p>No records to browse.</p>
           <button className="queue-close-btn" onClick={onClose}>CLOSE</button>
         </div>
       </div>
+      </Portal>
     );
   }
 
   return (
+    <Portal>
     <div className="queue-backdrop" onClick={onClose}>
       <div className="queue" onClick={(e) => e.stopPropagation()} style={{ ["--queue-tint" as any]: TYPE_TINT[type] }}>
         <header className="queue-head">
@@ -507,5 +511,6 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
         }
       `}</style>
     </div>
+    </Portal>
   );
 }

@@ -38,10 +38,16 @@ const counts = {
       <li>The "LISTEN" narration uses <a href="https://elevenlabs.io/text-to-speech" target="_blank" rel="noopener">ElevenLabs</a> text-to-speech (with a fallback to the browser's built-in voice).</li>
     </ul>
 
-    <h2>Source</h2>
-    <p>
-      <a href="https://www.war.gov/UFO/" target="_blank" rel="noopener" class="link-arrow">WAR.GOV/UFO →</a>
-    </p>
+    <div class="credit-row">
+      <div class="credit-box">
+        <span class="credit-label">SOURCE</span>
+        <a href="https://www.war.gov/UFO/" target="_blank" rel="noopener" class="link-arrow">WAR.GOV/UFO →</a>
+      </div>
+      <div class="credit-box">
+        <span class="credit-label">CREATOR</span>
+        <a href="https://kate.ai" target="_blank" rel="noopener" class="link-arrow link-arrow-purple">KATE.AI →</a>
+      </div>
+    </div>
   </div>
 </PageLayout>
 
@@ -74,6 +80,24 @@ const counts = {
     border-radius: 2px;
     font-size: 12px;
   }
+  .credit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .credit-box {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .credit-label {
+    font-family: var(--font-display);
+    font-size: 9px;
+    letter-spacing: .25em;
+    color: rgba(255,255,255,.45);
+    text-transform: uppercase;
+  }
   .link-arrow {
     display: inline-flex; align-items: center;
     border: 1px solid var(--color-hud);
@@ -86,6 +110,14 @@ const counts = {
   }
   .link-arrow:hover {
     background: var(--color-hud);
+    color: var(--color-bg) !important;
+  }
+  .link-arrow-purple {
+    border-color: var(--color-hof);
+    color: var(--color-hof) !important;
+  }
+  .link-arrow-purple:hover {
+    background: var(--color-hof);
     color: var(--color-bg) !important;
   }
   @media (max-width: 767px) {
