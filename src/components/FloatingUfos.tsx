@@ -1,12 +1,12 @@
 /**
  * FloatingUfos.tsx
  *
- * Renders 3D UFO meshes (orbs + saucers) directly into the react-globe.gl
- * Three.js scene. Handles raycasting for hover/click, and shows the
- * TransmissionModal on click.
+ * Renders 3D UFO meshes (silver flying saucers + Navy-style tic-tacs)
+ * directly into the react-globe.gl Three.js scene. Handles raycasting for
+ * hover/click, and shows the TransmissionModal on click.
  *
  * Design constraints:
- * - Cap of 3 concurrent UFOs (enforced by makeSpawnManager)
+ * - Cap of 1 concurrent craft (enforced by makeSpawnManager) — rare sightings
  * - Dispose geometry + materials on despawn / unmount
  * - Reuse Raycaster + Vector2 — never allocate per frame
  * - No audio
@@ -29,7 +29,7 @@ interface FloatingUfosProps {
   isTouch: boolean;
 }
 
-// ── UFO mesh builders ─────────────────────────────────────────────────────────
+// ── UFO mesh builders ────────────────────────────────────────────────────────────
 
 interface UfoMeshData {
   mesh: THREE.Object3D;
@@ -56,26 +56,31 @@ function buildSaucerMesh(spec: UfoSpec): UfoMeshData {
   const textures: THREE.Texture[] = [];
   const group = new THREE.Group();
 
-  // Thin disc body — wider top edge tapering down (classic saucer profile)
+  // Thin disc body — wider top edge tapering down (classic saucer profile).
+  // Chrome-ish Phong so it catches globe.gl's directional light and reads as
+  // polished metal rather than a flat blob.
   const bodyGeo = new THREE.CylinderGeometry(3.0, 2.2, 0.5, 24, 1, false);
   geos.push(bodyGeo);
-  const bodyMat = new THREE.MeshBasicMaterial({
+  const bodyMat = new THREE.MeshPhongMaterial({
     color,
-    transparent: true,
-    opacity: 0.95,
+    shininess: 95,
+    specular: new THREE.Color(0xdfe6ee),
+    emissive: color.clone().multiplyScalar(0.16),
   });
   mats.push(bodyMat);
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   group.add(body);
 
-  // Prominent half-sphere dome — proportionally taller than before so the
-  // saucer silhouette is unmistakable
+  // Prominent half-sphere dome — a glassy canopy, lighter + more specular
   const domeGeo = new THREE.SphereGeometry(1.7, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
   geos.push(domeGeo);
-  const domeMat = new THREE.MeshBasicMaterial({
-    color: new THREE.Color(spec.color).offsetHSL(0, -0.1, 0.18),
+  const domeMat = new THREE.MeshPhongMaterial({
+    color: new THREE.Color(spec.color).offsetHSL(0, 0, 0.06),
+    shininess: 130,
+    specular: new THREE.Color(0xffffff),
+    emissive: color.clone().multiplyScalar(0.12),
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.78,
   });
   mats.push(domeMat);
   const dome = new THREE.Mesh(domeGeo, domeMat);
@@ -117,7 +122,8 @@ function buildSaucerMesh(spec: UfoSpec): UfoMeshData {
 
 /**
  * Tic-tac shape (Navy UAP style): smooth elongated capsule, no wings,
- * no markings. Scaled small (~4.5 units long) and matte-white.
+ * no markings. Scaled small (~4.5 units long), polished silver Phong body
+ * with a faint additive halo.
  */
 function buildTicTacMesh(spec: UfoSpec): UfoMeshData {
   const color = new THREE.Color(spec.color);
@@ -133,10 +139,11 @@ function buildTicTacMesh(spec: UfoSpec): UfoMeshData {
 
   const cylGeo = new THREE.CylinderGeometry(r, r, len, 18, 1, false);
   geos.push(cylGeo);
-  const bodyMat = new THREE.MeshBasicMaterial({
+  const bodyMat = new THREE.MeshPhongMaterial({
     color,
-    transparent: true,
-    opacity: 0.95,
+    shininess: 80,
+    specular: new THREE.Color(0xccd3db),
+    emissive: color.clone().multiplyScalar(0.18),
   });
   mats.push(bodyMat);
   const cyl = new THREE.Mesh(cylGeo, bodyMat);
@@ -182,7 +189,7 @@ function buildTicTacMesh(spec: UfoSpec): UfoMeshData {
   return { mesh: group, geos, mats, textures };
 }
 
-// ── Active UFO state (Three.js side) ─────────────────────────────────────────
+// ── Active UFO state (Three.js side) ───────────────────────────────────────────
 
 interface SceneUfo {
   id: number;
@@ -195,7 +202,7 @@ interface SceneUfo {
   spawnedAt: number;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+// ── Component ──────────────────────────────────────────────────────────────
 
 export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
   const [transmissionText, setTransmissionText] = useState<string | null>(null);
@@ -214,7 +221,7 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
       : false,
   );
 
-  // ── helpers ────────────────────────────────────────────────────────────────
+  // ── helpers ─────────────────────────────────────────────────────────────────────
 
   const disposeMeshData = useCallback((md: UfoMeshData) => {
     for (const g of md.geos) g.dispose();
@@ -239,7 +246,7 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
     return containerRef.current;
   }, []);
 
-  // ── spawn + update loop ────────────────────────────────────────────────────
+  // ── spawn + update loop ───────────────────────────────────────────────────────
 
   useEffect(() => {
     // Wait until the globe has initialised
@@ -258,13 +265,13 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
       groupRef.current = group;
       scene.add(group);
 
-      // Rare-sighting cadence: at most ONE craft on screen at any moment,
-      // and a long cool-down between spawn attempts. Each saucer/tic-tac
-      // lives ~12-16s, so most of the time you'll see 0 or 1.
+      // Rare-sighting cadence: at most ONE craft on screen at any moment, and
+      // a long cool-down between spawn attempts. Craft live ~11-14s while the
+      // cool-down is 16s, so there are real stretches with no UFO at all.
       const spawnManager = makeSpawnManager({
         cap: 1,
         now: performance.now(),
-        spawnIntervalMs: 12000,
+        spawnIntervalMs: 16000,
       });
 
       let lastFrameTime = performance.now();
@@ -382,7 +389,7 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
     };
   }, [globeRef, removeMeshFromGroup, getGlobeContainer]);
 
-  // ── Raycasting (hover + click) ────────────────────────────────────────────
+  // ── Raycasting (hover + click) ─────────────────────────────────────────────────
 
   useEffect(() => {
     function getNdcCoords(e: PointerEvent | MouseEvent, el: HTMLDivElement) {
@@ -480,7 +487,7 @@ export default function FloatingUfos({ globeRef, isTouch }: FloatingUfosProps) {
     };
   }, [globeRef, getGlobeContainer]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ── Render ───────────────────────────────────────────────────────────────────
 
   const handleAnother = useCallback(() => {
     const text = TRANSMISSIONS[Math.floor(Math.random() * TRANSMISSIONS.length)];
