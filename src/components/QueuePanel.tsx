@@ -196,6 +196,8 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
         .queue {
           --queue-tint: var(--color-hud);
           flex: 1;
+          width: 100%;
+          min-width: 0;
           background: linear-gradient(180deg, rgba(8,12,20,.96) 0%, rgba(4,6,11,.96) 100%);
           border: 1px solid color-mix(in srgb, var(--queue-tint) 38%, transparent);
           border-radius: 4px;
@@ -203,6 +205,7 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
           font-family: var(--font-mono);
           display: grid;
           grid-template-rows: auto 1fr auto;
+          grid-template-columns: minmax(0, 1fr);
           overflow: hidden;
           box-shadow:
             0 0 30px rgba(0,0,0,.7),
@@ -262,12 +265,16 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
           grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
           gap: 0;
           overflow: hidden;
+          min-width: 0;
+          min-height: 0;
         }
         .queue-hero {
           background: #04060b;
           border-right: 1px solid var(--color-line);
           display: flex; align-items: center; justify-content: center;
           overflow: hidden;
+          min-width: 0;
+          min-height: 0;
           position: relative;
         }
         .queue-hero iframe,
@@ -287,7 +294,10 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
         .queue-info {
           padding: 24px 26px;
           overflow-y: auto;
+          overflow-x: hidden;
           display: flex; flex-direction: column; gap: 14px;
+          min-width: 0;
+          min-height: 0;
         }
         .queue-title {
           font-family: var(--font-display);

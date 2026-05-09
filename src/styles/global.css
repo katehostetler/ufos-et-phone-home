@@ -148,8 +148,8 @@ body::after {
 .chip.off        { opacity: .35; }
 
 /* Icon-only dock chip (vid/img/pdf in the bottom dock) — bigger glyph, no text */
-.chip-icon { padding: 5px 11px; gap: 7px; }
-.chip-icon .chip-glyph { font-size: 14px; line-height: 1; letter-spacing: 0; }
+.chip-icon { padding: 5px 13px; gap: 7px; }
+.chip-icon .chip-glyph { font-size: 18px; line-height: 1; letter-spacing: 0; }
 
 /* Pin tooltip used by globe.gl. The wrapper div globe.gl (kapsule) injects
    has class `float-tooltip-kap` and lives inside `.scene-container`. Both
