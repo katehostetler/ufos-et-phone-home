@@ -34,23 +34,68 @@ export default function RecordModal({ records, onClose }: Props) {
     setSpeaking(false);
   }, [idx]);
 
-  function speakBlurb() {
+  // Pick the best available English voice. Priority — top is best:
+  //   1. Google's cloud voices (Chrome bundles "Google US English" / "Google UK English Female";
+  //      these stream from Google's servers, very natural)
+  //   2. Microsoft "Natural"/"Online" voices (Edge bundles e.g. "Microsoft Aria Online (Natural)")
+  //   3. Apple Premium / Enhanced voices on macOS / iOS Safari ("(Premium)" / "(Enhanced)")
+  //   4. Named macOS voices that don't carry the suffix but are still better than default
+  //   5. Any en-US / en-GB voice
+  //   6. Any en-* voice
+  // The browser may return an empty list on first call — voices load async.
+  function pickVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
+    const en = voices.filter((v) => v.lang?.startsWith("en"));
+    const enGoodLangs = en.filter((v) => /^en-(US|GB|AU|CA|IE)$/i.test(v.lang));
+    return (
+      enGoodLangs.find((v) => /^Google\s+(US|UK)\s+English/i.test(v.name)) ||
+      enGoodLangs.find((v) => /Online.*Natural/i.test(v.name) || /Microsoft.*Natural/i.test(v.name)) ||
+      enGoodLangs.find((v) => /\((Premium|Enhanced|Neural|Natural)\)/i.test(v.name)) ||
+      enGoodLangs.find((v) => /^(Samantha|Daniel|Karen|Moira|Tessa|Allison|Ava|Evan|Joelle|Noelle|Susan|Tom|Zoe)$/i.test(v.name)) ||
+      enGoodLangs[0] ||
+      en[0]
+    );
+  }
+
+  // Voices populate asynchronously — return what's there, else wait for `voiceschanged`.
+  function getVoicesAsync(): Promise<SpeechSynthesisVoice[]> {
+    return new Promise((resolve) => {
+      const synth = window.speechSynthesis;
+      const initial = synth.getVoices();
+      if (initial.length) return resolve(initial);
+      const onChange = () => {
+        synth.removeEventListener("voiceschanged", onChange);
+        resolve(synth.getVoices());
+      };
+      synth.addEventListener("voiceschanged", onChange);
+      // Safety timeout — if voiceschanged never fires, resolve with whatever we have.
+      setTimeout(() => {
+        synth.removeEventListener("voiceschanged", onChange);
+        resolve(synth.getVoices());
+      }, 1500);
+    });
+  }
+
+  async function speakBlurb() {
     if (typeof window === "undefined" || !window.speechSynthesis || !rec.blurb) return;
     if (speaking) {
       window.speechSynthesis.cancel();
       setSpeaking(false);
       return;
     }
+    const voices = await getVoicesAsync();
     const utt = new SpeechSynthesisUtterance(rec.blurb);
-    utt.rate = 0.95;
-    utt.pitch = 0.92;
-    const voices = window.speechSynthesis.getVoices();
-    // pick the most natural-sounding English voice we can find
-    const preferred =
-      voices.find((v) => /en-(US|GB)/.test(v.lang) && /enhanced|premium|natural/i.test(v.name)) ||
-      voices.find((v) => /en-(US|GB)/.test(v.lang) && /alex|daniel|david|samantha|karen/i.test(v.name)) ||
-      voices.find((v) => v.lang.startsWith("en"));
-    if (preferred) utt.voice = preferred;
+    // Natural defaults — slowing/lowering the rate+pitch on already-bad voices
+    // makes them sound *worse*. Trust good voices to sound good at 1.0.
+    utt.rate = 1.0;
+    utt.pitch = 1.0;
+    utt.volume = 1.0;
+    const preferred = pickVoice(voices);
+    if (preferred) {
+      utt.voice = preferred;
+      // Lock the lang to the chosen voice's lang, otherwise some browsers silently
+      // re-pick a default voice for the utterance's lang field.
+      utt.lang = preferred.lang;
+    }
     utt.onend = () => setSpeaking(false);
     utt.onerror = () => setSpeaking(false);
     window.speechSynthesis.speak(utt);
@@ -458,7 +503,19 @@ export default function RecordModal({ records, onClose }: Props) {
             min-height: 180px;
           }
           .modal-body {
-            padding: 16px 16px 18px;
+            padding: 16px 16px 0;
+          }
+          /* Pin the action bar to the bottom of the scroll box on mobile so
+             the (sometimes red) primary button never floats over content. */
+          .modal-actions {
+            position: sticky;
+            bottom: 0;
+            margin: 8px -16px 0;
+            padding: 12px 16px 14px;
+            background: linear-gradient(180deg, rgba(8,12,20,0) 0%, rgba(4,6,11,.96) 30%);
+            backdrop-filter: blur(6px);
+            border-top: 1px solid var(--color-line);
+            z-index: 1;
           }
           .modal-title {
             font-size: 15px;

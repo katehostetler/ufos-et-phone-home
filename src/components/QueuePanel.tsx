@@ -88,7 +88,10 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
           <span className="queue-counter">
             {idx + 1} / {items.length}
           </span>
-          <button className="queue-close-btn" onClick={onClose} aria-label="Close">✕</button>
+          <button className="queue-close-btn" onClick={onClose} aria-label="Back to globe" title="Back to globe">
+            <span className="qc-x">✕</span>
+            <span className="qc-label">BACK TO GLOBE</span>
+          </button>
         </header>
 
         <div className="queue-detail">
@@ -233,20 +236,25 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
           font-variant-numeric: tabular-nums;
         }
         .queue-close-btn {
-          background: transparent;
-          border: 1px solid rgba(255,255,255,.15);
-          color: rgba(255,255,255,.7);
-          width: 30px; height: 30px;
+          background: rgba(106,255,200,.08);
+          border: 1px solid rgba(106,255,200,.4);
+          color: var(--color-hud);
+          height: 32px;
+          padding: 0 12px;
           border-radius: 2px;
           font-family: var(--font-mono);
-          font-size: 13px;
+          font-size: 11px;
+          letter-spacing: .15em;
           cursor: pointer;
           transition: all .15s;
+          display: inline-flex; align-items: center; gap: 8px;
         }
         .queue-close-btn:hover {
-          color: var(--queue-tint);
-          border-color: var(--queue-tint);
+          background: rgba(106,255,200,.18);
+          border-color: var(--color-hud);
         }
+        .qc-x { font-size: 13px; line-height: 1; }
+        .qc-label { font-weight: 700; }
 
         /* DETAIL */
         .queue-detail {
@@ -456,16 +464,31 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
             max-height: 38vh;
           }
           .queue-info {
-            padding: 16px 18px 14px;
+            padding: 16px 18px 0;
             gap: 10px;
           }
           .queue-title { font-size: 15px; }
           .queue-meta { font-size: 9px; gap: 6px 12px; padding-bottom: 8px; }
           .queue-blurb { font-size: 12px; line-height: 1.55; }
+          /* Pin the action bar to the bottom of the scroll box so the (often
+             red) "OPEN ON DVIDS" button never floats over content. */
+          .queue-actions {
+            position: sticky;
+            bottom: 0;
+            margin: 6px -18px 0;
+            padding: 10px 18px 12px;
+            background: linear-gradient(180deg, rgba(8,12,20,0) 0%, rgba(4,6,11,.96) 30%);
+            backdrop-filter: blur(6px);
+            border-top: 1px solid var(--color-line);
+            z-index: 1;
+          }
           .queue-action { font-size: 10px; padding: 9px 14px; flex: 1 1 auto; justify-content: center; }
           .queue-head {
             padding: 12px 14px;
           }
+          /* Compact the BACK TO GLOBE label slightly on mobile so it fits */
+          .queue-close-btn { padding: 0 10px; font-size: 10px; letter-spacing: .12em; height: 30px; }
+          .qc-label { display: inline; }
           .queue-type-badge { font-size: 12px; letter-spacing: .2em; }
           .queue-nav { padding: 10px; gap: 4px; }
           .queue-nav-btn { width: 34px; }
