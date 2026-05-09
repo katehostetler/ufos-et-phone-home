@@ -55,7 +55,7 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 ### Changed (more)
 - Bottom-dock label "▤ BROWSE GALLERY" wraps to two lines, and the mobile dock spacing was tightened, so the `⊕ 47 LOCATION UNKNOWN` chip now fits on screen without horizontal scrolling.
 - **Hall of Fame is purple now** — the `★ HALL OF FAME` chip, the overlay header, the hook line, the rail scrollbar, card hover rings, etc. all moved from green to the `--color-hof` (`#d4b3ff`) purple that "ET PHONE HOME" uses.
-- /about page: the bottom "Source" link is now a two-box "SOURCE · WAR.GOV/UFO →" + "CREATOR · KATE.AI →" row (the creator box links to https://kate.ai in purple).
+- /about page: the bottom "Source" link is now a two-box "SOURCE · WAR.GOV/UFO →" + "CREATOR · WITHKATE.AI →" row (the creator box links to https://withkate.ai in purple).
 - Globe sharpness: max anisotropic filtering applied to the earth texture (+ bump/specular/emissive maps) so it stays crisp at glancing angles and when zoomed in. City-light twinkle intensity bumped slightly (0.22 → 0.30) so it's more visibly "alive".
 
 ### Added (Moon + gallery)
