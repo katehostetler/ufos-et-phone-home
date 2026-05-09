@@ -356,8 +356,12 @@ export default function GlobeApp({ records }: Props) {
             pushpinAltitude({ regional: d.location.regional, touch: isTouch })
           }
           pointRadius={(d: any) => {
+            // Generous invisible hit-volume — ~2x the bead — so hovering/tapping
+            // near a pin registers without pixel-perfect aim. It's transparent,
+            // so the bigger target doesn't change anything visually. Kept
+            // moderate so dense clusters (e.g. Hormuz ×5) don't mis-target.
             const base =
-              (d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * 0.95;
+              (d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * 2.0;
             return isTouch ? base * PUSHPIN.touchScale : base;
           }}
           pointResolution={12}
