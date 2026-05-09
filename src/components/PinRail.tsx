@@ -133,6 +133,7 @@ export default function PinRail({ type, allRecords, onClose, onActiveChange, onS
                 ) : (
                   <span className="pin-rail-thumb-empty">▣</span>
                 )}
+                <span className={`type-badge ${rec.mediaType}`}>{rec.mediaType.toUpperCase()}</span>
               </span>
               <span className="pin-rail-meta">
                 <span className="pin-rail-card-title">{rec.title}</span>
