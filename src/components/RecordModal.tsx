@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Record } from "@/types/record";
 
 interface Props {
@@ -59,7 +60,7 @@ export default function RecordModal({ records, onClose }: Props) {
 
   if (!rec) return null;
 
-  return (
+  const ui = (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-enter" onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
@@ -431,7 +432,9 @@ export default function RecordModal({ records, onClose }: Props) {
             border-top: 1px solid rgba(106,255,200,.3);
           }
           .modal-head {
-            padding: 12px 14px;
+            /* full-screen modal now covers the status bar / notch on mobile —
+               keep the close button clear of the safe-area inset */
+            padding: max(12px, env(safe-area-inset-top)) 14px 12px;
             gap: 8px;
             flex-wrap: wrap;
           }
@@ -492,4 +495,9 @@ export default function RecordModal({ records, onClose }: Props) {
       `}</style>
     </div>
   );
+
+  // Render through a portal to <body> so the modal escapes the globe page's
+  // `position: fixed` stacking context — otherwise the Hud (z-index 7) paints
+  // over the modal header and hides the "BACK TO GLOBE" button.
+  return typeof document !== "undefined" ? createPortal(ui, document.body) : ui;
 }
