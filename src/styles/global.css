@@ -148,9 +148,10 @@ body::after {
 .chip.active     { color: var(--color-hud); border-color: rgba(106,255,200,.5); background: rgba(106,255,200,.08); }
 .chip.off        { opacity: .35; }
 
-/* Icon-only dock chip (vid/img/pdf in the bottom dock) — bigger glyph, no text */
-.chip-icon { padding: 5px 13px; gap: 7px; }
-.chip-icon .chip-glyph { font-size: 18px; line-height: 1; letter-spacing: 0; }
+/* Icon-only dock chip (vid/img/pdf) — just the coloured glyph in its coloured
+   box; no swatch dot. The glyph inherits the chip's media-type colour. */
+.chip-icon { padding: 4px 13px; gap: 0; }
+.chip-icon .chip-glyph { font-size: 21px; line-height: 1; letter-spacing: 0; }
 
 /* Pin tooltip used by globe.gl. The wrapper div globe.gl (kapsule) injects
    has class `float-tooltip-kap` and lives inside `.scene-container`. Both
@@ -187,6 +188,24 @@ body::after {
 }
 .pin-tooltip .ttl { font-weight: 600; }
 .pin-tooltip .meta { font-size: 9px; opacity: .55; margin-top: 3px; }
+
+/* Tooltip shown when hovering the orbiting Moon (created in document.body by LunarMoon) */
+.moon-tooltip {
+  position: fixed;
+  z-index: 9;
+  background: rgba(0,0,0,.92);
+  border: 1px solid var(--color-hof);
+  border-radius: 2px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .12em;
+  color: #ece4fb;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 14px rgba(199,148,255,.4), 0 4px 16px rgba(0,0,0,.6);
+  pointer-events: none;
+  max-width: 260px;
+}
 
 /* blink animation for live indicators */
 @keyframes hud-blink {
@@ -238,6 +257,13 @@ body::after {
 }
 @media (prefers-reduced-motion: reduce) {
   .hof-chip { animation: none; }
+}
+.hof-star {
+  font-size: 1.5em;
+  line-height: 0;
+  vertical-align: -2px;
+  margin-right: 2px;
+  filter: drop-shadow(0 0 6px rgba(199,148,255,.7));
 }
 
 /* Full-viewport overlay backdrop */
@@ -406,9 +432,10 @@ body::after {
   border-radius: 2px;
   pointer-events: none;
 }
-.type-badge.vid { color: var(--color-vid); background: rgba(255,59,59,.15); border: 1px solid rgba(255,59,59,.4); }
-.type-badge.img { color: var(--color-img); background: rgba(90,215,255,.12); border: 1px solid rgba(90,215,255,.35); }
-.type-badge.pdf { color: var(--color-pdf); background: rgba(255,200,112,.12); border: 1px solid rgba(255,200,112,.35); }
+/* Solid-ish dark backing so the coloured text reads on any thumbnail (incl. white PDF pages) */
+.type-badge.vid { color: #ff9a9a; background: rgba(10,4,6,.82);  border: 1px solid rgba(255,59,59,.65); }
+.type-badge.img { color: #9ce6ff; background: rgba(4,8,11,.82);  border: 1px solid rgba(90,215,255,.6); }
+.type-badge.pdf { color: #ffdc9c; background: rgba(11,8,4,.82);  border: 1px solid rgba(255,200,112,.65); }
 
 /* Card body */
 .hof-card-body {

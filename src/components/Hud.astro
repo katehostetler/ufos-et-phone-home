@@ -8,10 +8,12 @@
     <span class="logo-sub">/ ET PHONE HOME</span>
   </a>
   <span class="clock" id="clock">UTC --:--:--</span>
-  <nav class="primary-nav" aria-label="Site nav">
-    <a href="/about" class="nav-about"><span class="nav-glyph">ⓘ</span>ABOUT</a>
-  </nav>
-  <span class="stamp">DECLASSIFIED · RELEASE_01</span>
+  <div class="hud-right">
+    <span class="stamp">DECLASSIFIED · RELEASE_01</span>
+    <nav class="primary-nav" aria-label="Site nav">
+      <a href="/about" class="nav-about"><span class="nav-glyph">ⓘ</span>ABOUT</a>
+    </nav>
+  </div>
 </header>
 
 <style>
@@ -21,7 +23,7 @@
     height: 56px;
     display: flex;
     align-items: center;
-    padding: 0 28px;
+    padding: 0 34px;
     background: linear-gradient(180deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 100%);
     border-bottom: 1px solid var(--color-line);
     gap: 18px;
@@ -63,11 +65,16 @@
     font-variant-numeric: tabular-nums;
     color: #cdd3dc;
   }
-  .primary-nav {
+  .hud-right {
     display: flex;
     align-items: center;
     gap: 14px;
     margin-left: auto;
+  }
+  .primary-nav {
+    display: flex;
+    align-items: center;
+    gap: 14px;
   }
   .nav-label {
     font-size: 9px;
@@ -120,42 +127,43 @@
     .stamp { font-size: 8px; padding: 3px 7px; letter-spacing: .15em; }
   }
 
-  /* Mobile — show glyphs only, hide text labels */
+  /* Mobile — show glyphs only for nav links; keep the DECLASSIFIED stamp */
   @media (max-width: 767px) {
     .top {
       height: 48px;
-      padding: 0 10px 0 26px;
+      padding: 0 14px 0 22px;
       gap: 6px;
     }
-    .brand { gap: 6px; flex-shrink: 1; min-width: 0; }
-    .logo { font-size: 13px; letter-spacing: .2em; }
-    .logo-sub { font-size: 9px; letter-spacing: .22em; }
+    .brand { gap: 5px; flex-shrink: 1; min-width: 0; }
+    .logo { font-size: 12.5px; letter-spacing: .16em; }
+    .logo-sub { font-size: 8.5px; letter-spacing: .18em; }
     .clock { display: none; }
-    .stamp { display: none; }
     .nav-label { display: none; }
-    .primary-nav {
-      gap: 14px;
-      margin-left: auto;
+    .hud-right { gap: 8px; }
+    .stamp {
+      font-size: 7px;
+      padding: 2px 5px;
+      letter-spacing: .1em;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
+    .primary-nav { gap: 10px; }
     .primary-nav a {
       font-size: 0;
       letter-spacing: 0;
       gap: 0;
     }
     .nav-glyph {
-      font-size: 14px;
-      color: rgba(106,255,200,.85);
+      font-size: 15px;
+      color: rgba(106,255,200,.9);
     }
   }
 
-  /* Very small mobile — keep glyphs visible */
-  @media (max-width: 480px) {
-    .top {
-      padding: 0 10px 0 28px;
-      gap: 6px;
-    }
-    .primary-nav { gap: 11px; }
-    .nav-glyph { font-size: 13px; }
+  /* Very small mobile — drop the stamp's "RELEASE_01" half if things get tight */
+  @media (max-width: 400px) {
+    .logo-sub { font-size: 8px; letter-spacing: .14em; }
+    .stamp { font-size: 6.5px; padding: 2px 4px; }
+    .hud-right { gap: 6px; }
   }
 </style>
 
