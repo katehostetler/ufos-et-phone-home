@@ -1,8 +1,5 @@
 ---
-interface Props {
-  recordCount: number;
-}
-const { recordCount } = Astro.props;
+// (no props — record count lives in the Ticker on the right side of the globe)
 ---
 
 <header class="top">
@@ -11,15 +8,10 @@ const { recordCount } = Astro.props;
     <span class="logo-sub">/ ET PHONE HOME</span>
   </a>
   <span class="clock" id="clock">UTC --:--:--</span>
-  <nav class="primary-nav" aria-label="Browse archive">
-    <span class="nav-label">BROWSE:</span>
-    <a href="/videos"><span class="nav-glyph">▶</span>VIDEOS</a>
-    <a href="/photos"><span class="nav-glyph">⊡</span>PHOTOS</a>
-    <a href="/files"><span class="nav-glyph">▤</span>FILES</a>
-    <a href="/no-location"><span class="nav-glyph">⊕</span>LOC UNKNOWN</a>
+  <nav class="primary-nav" aria-label="Site nav">
     <a href="/about" class="nav-about"><span class="nav-glyph">ⓘ</span>ABOUT</a>
   </nav>
-  <span class="stamp">DECLASSIFIED · RELEASE_01 · {recordCount} RECORDS</span>
+  <span class="stamp">DECLASSIFIED · RELEASE_01</span>
 </header>
 
 <style>

@@ -1,10 +1,10 @@
 ---
 import Base from "@/layouts/Base.astro";
 import Hud from "@/components/Hud.astro";
-import Legend from "@/components/Legend.astro";
 import Ticker from "@/components/Ticker.astro";
 import GlobeApp from "@/components/GlobeApp";
 import HallOfFameOverlay from "@/components/HallOfFameOverlay";
+// (Legend removed — pin colors are self-evident; counts now live in the dock chips' tooltips)
 import records from "@/data/records.json";
 import featuredRaw from "@/data/featured.json";
 import { resolveFeatured } from "@/lib/featured";
@@ -22,10 +22,9 @@ const featured = resolveFeatured(featuredRaw as any, all);
 ---
 
 <Base>
-  <Hud recordCount={all.length} />
+  <Hud />
 
   <main class="globe-page">
-    <Legend vidCount={counts.vid} imgCount={counts.img} pdfCount={counts.pdf} />
     <Ticker total={all.length} />
 
     <GlobeApp client:only="react" records={all} />
@@ -37,14 +36,14 @@ const featured = resolveFeatured(featuredRaw as any, all);
 
     <footer class="dock">
       <span class="dock-label">▤ BROWSE GALLERY</span>
-      <a href="/videos" data-queue="vid" class="chip vid active" title="Browse all videos in a stack">
-        <span class="swatch"></span>{counts.vid} VIDEOS
+      <a href="/videos" data-queue="vid" class="chip vid active chip-icon" title={`Browse all ${counts.vid} videos`} aria-label={`Browse all ${counts.vid} videos`}>
+        <span class="swatch"></span><span class="chip-glyph">▶</span>
       </a>
-      <a href="/photos" data-queue="img" class="chip img active" title="Browse all photos">
-        <span class="swatch"></span>{counts.img} PHOTOS
+      <a href="/photos" data-queue="img" class="chip img active chip-icon" title={`Browse all ${counts.img} photos`} aria-label={`Browse all ${counts.img} photos`}>
+        <span class="swatch"></span><span class="chip-glyph">⊡</span>
       </a>
-      <a href="/files" data-queue="pdf" class="chip pdf active" title="Browse all documents">
-        <span class="swatch"></span>{counts.pdf} FILES
+      <a href="/files" data-queue="pdf" class="chip pdf active chip-icon" title={`Browse all ${counts.pdf} documents`} aria-label={`Browse all ${counts.pdf} documents`}>
+        <span class="swatch"></span><span class="chip-glyph">▤</span>
       </a>
       <a href="/no-location" data-queue="noloc" class="chip" title="Records without a location">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
     </footer>
