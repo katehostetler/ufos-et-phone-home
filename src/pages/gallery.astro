@@ -1,0 +1,40 @@
+---
+import PageLayout from "@/layouts/PageLayout.astro";
+import RecordCard from "@/components/RecordCard.astro";
+import records from "@/data/records.json";
+import type { Record } from "@/types/record";
+
+// Every record — videos, photos, documents — newest first, then by id.
+const all = (records as Record[])
+  .slice()
+  .sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || a.id.localeCompare(b.id));
+
+const counts = {
+  vid: all.filter((r) => r.mediaType === "vid").length,
+  img: all.filter((r) => r.mediaType === "img").length,
+  pdf: all.filter((r) => r.mediaType === "pdf").length,
+};
+---
+
+<PageLayout
+  title="THE FULL ARCHIVE"
+  subtitle={`All ${all.length} records · ${counts.vid} videos · ${counts.img} photos · ${counts.pdf} documents`}
+>
+  <div class="grid">
+    {all.map((r) => <RecordCard record={r} />)}
+  </div>
+</PageLayout>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  @media (max-width: 767px) {
+    .grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+  }
+</style>

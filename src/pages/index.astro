@@ -32,27 +32,26 @@ const featured = resolveFeatured(featuredRaw as any, all);
     <HallOfFameOverlay client:only="react" featured={featured} />
 
     <!-- ★ HALL OF FAME chip — bottom-left, above the dock -->
-    <button type="button" class="chip hof-chip" data-open="hall-of-fame" title="The wildest files in the release">★ HALL OF FAME</button>
+    <button type="button" class="chip hof-chip" data-open="hall-of-fame" title="The wildest files in the release"><span class="hof-star">★</span> HALL OF FAME</button>
 
     <footer class="dock">
-      <span class="dock-label">▤ BROWSE<br />GALLERY</span>
+      <a href="/gallery" class="dock-label" title={`Browse the full archive (${all.length} records)`}>
+        <span class="dl-icon">▦</span><span class="dl-text">BROWSE<br />GALLERY</span>
+      </a>
       <a href="/videos" data-queue="vid" class="chip vid active chip-icon" title={`Browse all ${counts.vid} videos`} aria-label={`Browse all ${counts.vid} videos`}>
-        <span class="swatch"></span><span class="chip-glyph">▶</span>
+        <span class="chip-glyph">▶</span>
       </a>
       <a href="/photos" data-queue="img" class="chip img active chip-icon" title={`Browse all ${counts.img} photos`} aria-label={`Browse all ${counts.img} photos`}>
-        <span class="swatch"></span><span class="chip-glyph">⊡</span>
+        <span class="chip-glyph">⊡</span>
       </a>
       <a href="/files" data-queue="pdf" class="chip pdf active chip-icon" title={`Browse all ${counts.pdf} documents`} aria-label={`Browse all ${counts.pdf} documents`}>
-        <span class="swatch"></span><span class="chip-glyph">▤</span>
+        <span class="chip-glyph">▤</span>
       </a>
       <a href="/no-location" data-queue="noloc" class="chip" title="Records without a location">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
     </footer>
 
     <div class="banner-instr banner-pointer">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
     <div class="banner-instr banner-touch">DRAG TO ROTATE · PINCH TO ZOOM · TAP PINS</div>
-
-    <!-- Mobile-only declassified badge (stamp is hidden in the Hud on mobile) -->
-    <span class="mobile-stamp">DECLASSIFIED · RELEASE_01</span>
   </main>
 </Base>
 
@@ -138,42 +137,25 @@ const featured = resolveFeatured(featuredRaw as any, all);
     z-index: 7;
   }
   .dock .chip { text-decoration: none; padding: 7px 16px; }
+  /* "▦ BROWSE GALLERY" — a link to /gallery (the full unfiltered archive). */
   .dock-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     font-size: 9px;
-    letter-spacing: .22em;
-    line-height: 1.35;
+    letter-spacing: .18em;
+    line-height: 1.3;
     color: var(--color-hud);
-    padding-right: 9px;
-    border-right: 1px solid rgba(106,255,200,.25);
+    padding-right: 10px;
     margin-right: 2px;
+    border-right: 1px solid rgba(106,255,200,.25);
     flex-shrink: 0;
-    text-align: left;
+    text-decoration: none;
+    transition: text-shadow .15s, background .15s;
+    border-radius: 2px;
   }
-
-  /* mobile-only declassified stamp */
-  .mobile-stamp {
-    display: none;
-  }
-  @media (max-width: 767px) {
-    .mobile-stamp {
-      display: inline-flex;
-      align-items: center;
-      position: fixed;
-      top: 56px; right: 8px;
-      font-size: 8px;
-      letter-spacing: .18em;
-      color: var(--color-vid);
-      border: 1px solid rgba(255,59,59,.5);
-      padding: 3px 7px;
-      border-radius: 2px;
-      background: rgba(255,59,59,.08);
-      text-transform: uppercase;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      z-index: 6;
-      pointer-events: none;
-    }
-  }
+  .dock-label .dl-icon { font-size: 19px; line-height: 0; }
+  .dock-label:hover { text-shadow: 0 0 10px var(--color-hud); }
 
   /* Show the pointer/touch banner appropriate to the device. */
   .banner-touch { display: none; }
@@ -227,15 +209,17 @@ const featured = resolveFeatured(featuredRaw as any, all);
       bottom: 52px;
     }
 
-    /* Filterbar — sits just below the header, full width scrollable */
+    /* Filterbar — raised up close under the DECLASSIFIED stamp so it isn't
+       sitting in the middle of the globe; tight enough that all 3 type chips
+       fit across a 390px screen without horizontal scrolling. */
     :global(.filterbar) {
-      top: 84px;
-      left: 8px;
-      right: 8px;
+      top: 28px;
+      left: 6px;
+      right: 6px;
       transform: none;
-      justify-content: flex-start;
-      gap: 6px;
-      padding: 5px 8px;
+      justify-content: center;
+      gap: 4px;
+      padding: 4px 6px;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
@@ -243,18 +227,19 @@ const featured = resolveFeatured(featuredRaw as any, all);
       white-space: nowrap;
     }
     :global(.filterbar)::-webkit-scrollbar { display: none; }
-    :global(.filterbar) .chip { flex: 0 0 auto; }
+    :global(.filterbar) .chip {
+      flex: 0 0 auto;
+      padding: 4px 6px;
+      font-size: 8px;
+      letter-spacing: .03em;
+      gap: 4px;
+    }
+    :global(.filterbar) .chip .swatch { width: 5px; height: 5px; }
     :global(.filterbar-label) {
-      font-size: 8px;
-      letter-spacing: .16em;
+      font-size: 7.5px;
+      letter-spacing: .12em;
       padding-right: 6px;
     }
-    .dock-label {
-      font-size: 8px;
-      letter-spacing: .16em;
-      padding-right: 6px;
-    }
-
     /* Dock — sized so the LOCATION UNKNOWN chip fits without horizontal scroll */
     .dock {
       height: 52px;
@@ -274,9 +259,10 @@ const featured = resolveFeatured(featuredRaw as any, all);
       font-size: 8.5px;
       letter-spacing: .08em;
     }
-    .dock .chip-icon { padding: 5px 9px; }
-    .dock .chip-icon .chip-glyph { font-size: 15px; }
-    .dock-label { padding-right: 7px; margin-right: 0; }
+    .dock .chip-icon { padding: 4px 9px; }
+    .dock .chip-icon .chip-glyph { font-size: 18px; }
+    .dock-label { font-size: 7.5px; letter-spacing: .12em; padding-right: 7px; margin-right: 0; gap: 5px; }
+    .dock-label .dl-icon { font-size: 16px; }
 
     .banner-instr {
       bottom: 64px;

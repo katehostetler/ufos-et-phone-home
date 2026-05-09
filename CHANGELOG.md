@@ -57,3 +57,13 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 - **Hall of Fame is purple now** — the `★ HALL OF FAME` chip, the overlay header, the hook line, the rail scrollbar, card hover rings, etc. all moved from green to the `--color-hof` (`#d4b3ff`) purple that "ET PHONE HOME" uses.
 - /about page: the bottom "Source" link is now a two-box "SOURCE · WAR.GOV/UFO →" + "CREATOR · KATE.AI →" row (the creator box links to https://kate.ai in purple).
 - Globe sharpness: max anisotropic filtering applied to the earth texture (+ bump/specular/emissive maps) so it stays crisp at glancing angles and when zoomed in. City-light twinkle intensity bumped slightly (0.22 → 0.30) so it's more visibly "alive".
+
+### Added (Moon + gallery)
+- **Orbiting Moon**: the 8 Apollo lunar records (Apollo 12 / 17 photos + transcripts) used to have *Earth* pins at lat 0 / lng ±30, which made no sense. Added a small textured Moon (`src/components/LunarMoon.tsx`, texture mirrored to `public/textures/moon.jpg`) that slowly orbits Earth in the scene with a faint purple accent ring; clicking it opens those 8 records in the RecordModal (PREV/NEXT cycling). The lunar records are now excluded from the Earth globe pins entirely. (The 2 Gemini "Low Earth Orbit" records stay on Earth — they were genuinely in Earth orbit.) Hover tooltip on the Moon; respects reduced-motion. When a lunar record is the active card in a PinRail, the camera pulls back so the orbiting Moon is in frame.
+- **`/gallery`** — a new page listing every record (all 161, newest first), reachable from the `▦ BROWSE GALLERY` link in the bottom dock.
+
+### Changed (more polish)
+- Bottom dock: `BROWSE GALLERY` is now an `▦`-icon + text link to `/gallery`. The vid/img/pdf chips dropped their colour-dot swatches — it's just the (bigger) media-coloured glyph in its coloured box now.
+- Hall of Fame: the `★` in the chip is bigger; the type badges on cards got a near-solid dark backing so the coloured label reads on any thumbnail (incl. white PDF pages).
+- HUD: the `DECLASSIFIED · RELEASE_01` stamp moved into the top bar on the right, just left of the `ⓘ` info link, and shows on all screen sizes (the separate floating mobile-stamp element was removed). More right padding on the bar so the stamp/info aren't flush against the edge.
+- Mobile: the `⏵ BROWSE PINS` bar was raised up close under the stamp (was floating in the middle of the globe) and tightened so all three type chips fit a 390 px screen without horizontal scrolling.

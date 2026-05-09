@@ -5,6 +5,7 @@ import * as THREE from "three";
 import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
 import PinRail from "./PinRail";
+import LunarMoon from "./LunarMoon";
 import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
 import { applyCityLightShimmer } from "@/lib/globeShimmer";
 import FloatingUfos from "./FloatingUfos";
@@ -85,6 +86,11 @@ export default function GlobeApp({ records }: Props) {
   // when the queue's active record changes, fly the globe to its pin (if any)
   const onQueueActiveChange = useCallback((rec: Record) => {
     if (!rec.location || !globeRef.current) return;
+    if (rec.location.name === "Moon") {
+      // lunar record — pull the camera back so the orbiting Moon is in frame
+      globeRef.current.pointOfView({ altitude: 3.2 }, 900);
+      return;
+    }
     globeRef.current.pointOfView(
       { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
       900,
@@ -231,16 +237,28 @@ export default function GlobeApp({ records }: Props) {
     };
   }, []);
 
-  // dataset of pins — every record that has a location (no per-type filtering;
-  // the FILTER PINS chips now open the PinRail browser instead of toggling)
+  // lunar records (Apollo 12 / 17) — these get a marker ON the orbiting Moon
+  // instead of a misleading pin on the Earth globe.
+  const moonRecords = useMemo(
+    () =>
+      records
+        .filter((r) => r.location?.name === "Moon")
+        .slice()
+        .sort((a, b) => (b.year ?? 0) - (a.year ?? 0) || a.id.localeCompare(b.id)),
+    [records],
+  );
+
+  // dataset of Earth pins — every record with a location, EXCEPT the lunar ones
+  // (which live on the Moon). No per-type filtering — the BROWSE PINS chips open
+  // the PinRail browser instead of toggling visibility.
   const points = useMemo(
-    () => records.filter((r) => r.hasLocation && r.location),
+    () => records.filter((r) => r.hasLocation && r.location && r.location.name !== "Moon"),
     [records],
   );
 
   // ring data for videos (pulses)
   const rings = useMemo(
-    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid"),
+    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid" && r.location.name !== "Moon"),
     [records],
   );
 
@@ -444,6 +462,17 @@ export default function GlobeApp({ records }: Props) {
         />
         {/* Floating UFOs easter egg — Three.js meshes injected into the same scene */}
         <FloatingUfos globeRef={globeRef} isTouch={isTouch} />
+        {/* Orbiting Moon — hosts the lunar (Apollo) records instead of Earth pins */}
+        {moonRecords.length > 0 && (
+          <LunarMoon
+            globeRef={globeRef}
+            records={moonRecords}
+            onSelect={(recs) => {
+              savedPovRef.current = (globeRef.current as any)?.pointOfView() ?? null;
+              setModalRecords(recs);
+            }}
+          />
+        )}
       </div>
 
       {/* mobile single-tap preview (tap again to open) */}
