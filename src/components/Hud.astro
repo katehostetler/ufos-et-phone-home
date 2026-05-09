@@ -45,16 +45,21 @@ const { recordCount } = Astro.props;
   .logo {
     font-family: var(--font-display);
     font-weight: 900;
-    font-size: 16px;
-    letter-spacing: .22em;
-    color: var(--color-hud);
-    text-shadow: 0 0 12px rgba(106,255,200,.5);
+    font-size: 18px;
+    letter-spacing: .24em;
+    color: #d4b3ff;
+    text-shadow:
+      0 0 8px rgba(199,148,255,.85),
+      0 0 18px rgba(168,99,255,.55),
+      0 0 36px rgba(140,80,255,.35);
   }
   .logo-sub {
-    font-size: 11px;
+    font-size: 12px;
     letter-spacing: .3em;
-    opacity: .55;
-    color: #e8edf3;
+    color: #e9d6ff;
+    text-shadow:
+      0 0 6px rgba(199,148,255,.65),
+      0 0 14px rgba(168,99,255,.35);
   }
   .clock {
     font-size: 10px;
@@ -114,7 +119,7 @@ const { recordCount } = Astro.props;
       gap: 12px;
       padding: 0 20px;
     }
-    .logo-sub { display: none; }
+    .logo-sub { font-size: 10px; letter-spacing: .25em; }
     .clock { margin-left: 0; }
     .primary-nav { gap: 10px; }
     .nav-label { display: none; }
@@ -125,11 +130,12 @@ const { recordCount } = Astro.props;
   @media (max-width: 767px) {
     .top {
       height: 48px;
-      padding: 0 12px 0 30px;
-      gap: 8px;
+      padding: 0 10px 0 26px;
+      gap: 6px;
     }
-    .logo { font-size: 14px; letter-spacing: .18em; }
-    .logo-sub { display: none; }
+    .brand { gap: 6px; flex-shrink: 1; min-width: 0; }
+    .logo { font-size: 13px; letter-spacing: .2em; }
+    .logo-sub { font-size: 9px; letter-spacing: .22em; }
     .clock { display: none; }
     .stamp { display: none; }
     .nav-label { display: none; }

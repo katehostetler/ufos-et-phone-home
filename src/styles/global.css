@@ -444,6 +444,126 @@ body::after {
 }
 
 /* ============================================================ */
+/* TRANSMISSION MODAL (UFO easter egg)                            */
+/* ============================================================ */
+
+.tx-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: tx-fade-in 0.2s ease-out;
+}
+@keyframes tx-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.tx-modal {
+  position: relative;
+  max-width: 560px;
+  width: calc(100% - 48px);
+  background: rgba(4, 6, 11, 0.97);
+  border: 1px solid rgba(106, 255, 200, 0.3);
+  border-radius: 4px;
+  padding: 32px 28px 24px;
+  font-family: var(--font-mono);
+  color: #e8edf3;
+  animation: tx-slide-in 0.22s ease-out;
+  overflow: hidden;
+}
+@keyframes tx-slide-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Animated rotating conic ring as the "scanning" UFO border */
+.tx-modal::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 6px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(106, 255, 200, 0.6) 30deg,
+    transparent 60deg,
+    transparent 120deg,
+    rgba(176, 220, 255, 0.5) 150deg,
+    transparent 180deg,
+    transparent 240deg,
+    rgba(106, 255, 200, 0.4) 270deg,
+    transparent 300deg,
+    transparent 360deg
+  );
+  animation: tx-scan 3s linear infinite;
+  z-index: -1;
+  pointer-events: none;
+}
+@keyframes tx-scan { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.tx-header {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(106, 255, 200, 0.65);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(106, 255, 200, 0.2);
+  line-height: 1.4;
+}
+
+.tx-body {
+  font-size: 14px;
+  line-height: 1.7;
+  letter-spacing: 0.05em;
+  color: #d8eef8;
+  margin-bottom: 24px;
+  background: linear-gradient(90deg, transparent 0%, rgba(180,240,255,.08) 50%, transparent 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: tx-decode 2.4s ease-in-out infinite;
+}
+@keyframes tx-decode {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.tx-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.tx-btn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 6px 12px;
+  transition: all 0.15s ease;
+}
+.tx-btn-another {
+  background: rgba(106, 255, 200, 0.06);
+  border: 1px solid rgba(106, 255, 200, 0.35);
+  color: var(--color-hud);
+}
+.tx-btn-another:hover { background: rgba(106,255,200,.14); border-color: var(--color-hud); }
+.tx-btn-close {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.55);
+  padding: 6px 10px;
+}
+.tx-btn-close:hover { border-color: rgba(255,255,255,.4); color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-overlay,
+  .tx-modal,
+  .tx-modal::before,
+  .tx-body { animation: none; background: none; }
+}
+
+/* ============================================================ */
 /* TABLET (≤1024px)                                              */
 /* ============================================================ */
 @media (max-width: 1024px) {

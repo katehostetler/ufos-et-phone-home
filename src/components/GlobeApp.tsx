@@ -6,6 +6,7 @@ import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
 import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
 import { applyCityLightShimmer } from "@/lib/globeShimmer";
+import FloatingUfos from "./FloatingUfos";
 import type { Record, MediaType } from "@/types/record";
 
 const COLORS: Record<MediaType, string> = {
@@ -406,6 +407,8 @@ export default function GlobeApp({ records }: Props) {
           ringPropagationSpeed={2.4}
           ringRepeatPeriod={1400}
         />
+        {/* Floating UFOs easter egg — Three.js meshes injected into the same scene */}
+        <FloatingUfos globeRef={globeRef} isTouch={isTouch} />
       </div>
 
       {/* mobile single-tap preview (tap again to open) */}
