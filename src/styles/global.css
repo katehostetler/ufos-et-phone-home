@@ -222,10 +222,21 @@ body::after {
   color: var(--color-hud);
   border-color: rgba(106,255,200,.5);
   background: rgba(106,255,200,.08);
+  /* Subtle pulse for the first ~12s so the chip is discoverable, then settles down */
+  animation: hof-pulse 2.4s ease-in-out 5 forwards;
 }
-.hof-chip:hover {
-  background: rgba(106,255,200,.16);
-  box-shadow: 0 0 10px rgba(106,255,200,.3);
+.hof-chip:hover,
+.hof-chip:focus-visible {
+  background: rgba(106,255,200,.18);
+  box-shadow: 0 0 14px rgba(106,255,200,.45);
+  animation: none; /* stop pulsing once user interacts */
+}
+@keyframes hof-pulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(106,255,200,0); }
+  50%      { box-shadow: 0 0 16px rgba(106,255,200,.55); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hof-chip { animation: none; }
 }
 
 /* Full-viewport overlay backdrop */
