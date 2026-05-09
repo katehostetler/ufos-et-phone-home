@@ -459,6 +459,160 @@ body::after {
 }
 
 /* ============================================================ */
+/* PIN RAIL — slim left-docked record browser per media type      */
+/* ============================================================ */
+
+.pin-rail {
+  position: fixed;
+  left: 0;
+  top: 56px;            /* clears the Hud */
+  bottom: 56px;         /* clears the dock */
+  width: 320px;
+  z-index: 8;           /* above the globe + filterbar, below modals (100) */
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(6,10,16,.95) 0%, rgba(3,5,9,.95) 100%);
+  border-right: 1px solid var(--color-line);
+  box-shadow: 6px 0 28px rgba(0,0,0,.5);
+  font-family: var(--font-mono);
+  animation: pin-rail-in .22s ease-out;
+}
+@keyframes pin-rail-in {
+  from { transform: translateX(-100%); opacity: .4; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .pin-rail { animation: none; } }
+
+.pin-rail-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border-bottom: 1px solid var(--color-line);
+}
+.pin-rail-title {
+  font-size: 10px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.pin-rail-head.vid .pin-rail-title { color: var(--color-vid); }
+.pin-rail-head.img .pin-rail-title { color: var(--color-img); }
+.pin-rail-head.pdf .pin-rail-title { color: var(--color-pdf); }
+.pin-rail-count {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: .55;
+  font-variant-numeric: tabular-nums;
+}
+.pin-rail-close {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,.15);
+  color: rgba(255,255,255,.7);
+  width: 26px; height: 26px;
+  border-radius: 2px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.pin-rail-close:hover { color: #fff; border-color: var(--color-hud); }
+.pin-rail-hint {
+  margin: 0;
+  padding: 7px 14px;
+  font-size: 8px;
+  letter-spacing: .22em;
+  color: rgba(106,255,200,.5);
+  border-bottom: 1px solid rgba(255,255,255,.05);
+}
+
+.pin-rail-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.15) transparent;
+}
+.pin-rail-list::-webkit-scrollbar { width: 6px; }
+.pin-rail-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+.pin-rail-card {
+  margin-bottom: 7px;
+  border: 1px solid rgba(255,255,255,.07);
+  border-radius: 3px;
+  background: rgba(255,255,255,.02);
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.pin-rail-card.active.vid { border-color: rgba(255,59,59,.6);  box-shadow: 0 0 14px rgba(255,59,59,.22); background: rgba(255,59,59,.06); }
+.pin-rail-card.active.img { border-color: rgba(90,215,255,.6); box-shadow: 0 0 14px rgba(90,215,255,.22); background: rgba(90,215,255,.06); }
+.pin-rail-card.active.pdf { border-color: rgba(255,200,112,.6); box-shadow: 0 0 14px rgba(255,200,112,.22); background: rgba(255,200,112,.06); }
+.pin-rail-card-btn {
+  all: unset;
+  display: flex;
+  gap: 9px;
+  width: 100%;
+  padding: 7px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.pin-rail-card-btn:focus-visible { outline: 1px solid var(--color-hud); outline-offset: 1px; }
+.pin-rail-thumb {
+  flex: 0 0 52px;
+  width: 52px; height: 64px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: #06080d;
+  display: flex; align-items: center; justify-content: center;
+}
+.pin-rail-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+  display: block;
+}
+.pin-rail-thumb-empty { font-size: 16px; color: rgba(255,255,255,.2); }
+.pin-rail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  justify-content: center;
+}
+.pin-rail-card-title {
+  font-size: 10.5px;
+  line-height: 1.35;
+  color: #e2e7ee;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.pin-rail-card-sub {
+  font-size: 8.5px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.4);
+}
+.pin-rail-empty {
+  padding: 24px 14px;
+  font-size: 10px;
+  color: rgba(255,255,255,.4);
+  line-height: 1.6;
+}
+
+/* a type chip currently driving an open rail gets a stronger ring */
+.chip.open { box-shadow: 0 0 12px rgba(106,255,200,.4) inset, 0 0 8px rgba(106,255,200,.3); }
+
+/* Mobile: rail takes most of the screen width (still leaves a sliver of globe) */
+@media (max-width: 767px) {
+  .pin-rail {
+    top: 48px;
+    bottom: 52px;
+    width: min(86vw, 320px);
+  }
+}
+
+/* ============================================================ */
 /* TRANSMISSION MODAL (UFO easter egg)                            */
 /* ============================================================ */
 

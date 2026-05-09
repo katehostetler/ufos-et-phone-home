@@ -4,6 +4,7 @@ import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
+import PinRail from "./PinRail";
 import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
 import { applyCityLightShimmer } from "@/lib/globeShimmer";
 import FloatingUfos from "./FloatingUfos";
@@ -26,13 +27,10 @@ export default function GlobeApp({ records }: Props) {
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [isTouch, setIsTouch] = useState(false);
-  const [active, setActive] = useState<{ vid: boolean; img: boolean; pdf: boolean }>({
-    vid: true,
-    img: true,
-    pdf: true,
-  });
   const [modalRecords, setModalRecords] = useState<Record[] | null>(null);
   const [queueType, setQueueType] = useState<QueueType | null>(null);
+  // which media type's pin-rail (slim left list) is open, if any
+  const [pinRailType, setPinRailType] = useState<MediaType | null>(null);
   const [touchPreview, setTouchPreview] = useState<{
     rec: Record;
     x: number;
@@ -220,19 +218,17 @@ export default function GlobeApp({ records }: Props) {
     };
   }, []);
 
-  // dataset of pins (filtered + only those with location)
+  // dataset of pins — every record that has a location (no per-type filtering;
+  // the FILTER PINS chips now open the PinRail browser instead of toggling)
   const points = useMemo(
-    () =>
-      records.filter(
-        (r) => r.hasLocation && r.location && active[r.mediaType as MediaType],
-      ),
-    [records, active],
+    () => records.filter((r) => r.hasLocation && r.location),
+    [records],
   );
 
   // ring data for videos (pulses)
   const rings = useMemo(
-    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid" && active.vid),
-    [records, active.vid],
+    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid"),
+    [records],
   );
 
   function openLocationModal(p: Record) {
@@ -240,8 +236,7 @@ export default function GlobeApp({ records }: Props) {
     const same = records.filter(
       (r) =>
         r.hasLocation &&
-        r.location?.name === p.location?.name &&
-        active[r.mediaType as MediaType],
+        r.location?.name === p.location?.name,
     );
     if (same.length === 0) return;
     // Snapshot the user's current view so we can return them here on close.
@@ -309,9 +304,9 @@ export default function GlobeApp({ records }: Props) {
 
   return (
     <>
-      {/* filter chips — toggle pin visibility on the globe */}
+      {/* type chips — open the slim PinRail browser for that media type */}
       <div className="filterbar">
-        <span className="filterbar-label">⏵ FILTER PINS</span>
+        <span className="filterbar-label">⏵ BROWSE PINS</span>
         {(["vid", "img", "pdf"] as MediaType[]).map((t) => {
           const labels = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
           const counts = {
@@ -322,9 +317,17 @@ export default function GlobeApp({ records }: Props) {
           return (
             <span
               key={t}
-              className={`chip ${t} ${active[t] ? "active" : "off"}`}
-              onClick={() => setActive((s) => ({ ...s, [t]: !s[t] }))}
-              title={`Toggle ${labels[t].toLowerCase()} pins on the globe`}
+              role="button"
+              tabIndex={0}
+              className={`chip ${t} active ${pinRailType === t ? "open" : ""}`}
+              onClick={() => setPinRailType((cur) => (cur === t ? null : t))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setPinRailType((cur) => (cur === t ? null : t));
+                }
+              }}
+              title={`Browse ${labels[t].toLowerCase()} pins`}
             >
               <span className="swatch"></span>
               {labels[t]} · {counts[t]}
@@ -332,6 +335,21 @@ export default function GlobeApp({ records }: Props) {
           );
         })}
       </div>
+
+      {/* slim left-docked pin browser */}
+      <PinRail
+        type={pinRailType}
+        allRecords={records}
+        onClose={() => setPinRailType(null)}
+        onActiveChange={onQueueActiveChange}
+        onSelect={(rec) => {
+          // snapshot the rail's current view so closing the modal returns here
+          if (globeRef.current) {
+            savedPovRef.current = (globeRef.current as any).pointOfView() ?? null;
+          }
+          setModalRecords([rec]);
+        }}
+      />
 
       {/* globe stage */}
       <div ref={containerRef} className="globe-stage">

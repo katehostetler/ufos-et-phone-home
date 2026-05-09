@@ -45,3 +45,6 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 
 ### Removed
 - Closed draft PR #1 ("better spaceships + modal exit + starfield depth") and deleted the `feat/better-spaceships` branch — the useful ideas (silver craft, modal layout) were folded into this work fresh from `main`.
+
+### Added
+- **PinRail** (`src/components/PinRail.tsx`) — the top-bar type chips (VIDEO / PHOTO / DOCUMENT) no longer toggle pin visibility (Kate: "no one's going to do that"); clicking one now opens a slim left-docked rail of mini record-cards for that media type, while the auto-rotating globe stays visible to the right. As you scroll the rail, the card crossing its vertical centre becomes "active" (highlighted in the type colour) and the globe flies to that record's pin; clicking a card opens the full RecordModal. The label changed from "⏵ FILTER PINS" to "⏵ BROWSE PINS"; the per-type pin-visibility filter was removed (all located pins always show now). Esc / the ✕ / clicking the visible globe closes the rail.
