@@ -4,20 +4,33 @@
  * Pure data + logic for the floating-UFO easter egg.
  * No DOM / Three.js imports — unit-testable in isolation.
  *
- * Neutral pale colors chosen to avoid the media-type pin palette:
+ * Craft colors are desaturated metallic silver / steel / chrome tones —
+ * "futuristic spacecraft", and well clear of the media-type pin palette:
  *   vid: #ff3b3b  |  img: #5ad7ff  |  pdf: #ffc870
  */
 
 // ─── UFO pool ────────────────────────────────────────────────────────────────
 
-export type UfoKind = "orb" | "saucer";
+/**
+ * Two iconic UFO silhouettes:
+ *  - "saucer": classic flying saucer (thin disc + prominent dome + rim lights)
+ *  - "tictac": Navy-style tic-tac (smooth elongated metallic capsule)
+ *
+ * Abstract glowing orbs were removed — at small sizes they read as smudges,
+ * not spaceships. These two shapes are unmistakable at a glance, and each
+ * pool entry is a slightly different metal tone / size so two on screen at
+ * once never look identical.
+ */
+export type UfoKind = "saucer" | "tictac";
 
 export interface UfoSpec {
   kind: UfoKind;
-  /** emissive color hex */
+  /** body color hex (metallic silver / steel / chrome) */
   color: string;
-  /** 0-1 base opacity of the emissive glow */
+  /** 0-1 base opacity of the emissive rim/glow accents */
   glowIntensity: number;
+  /** overall scale multiplier so individuals differ a bit in size */
+  scale: number;
   /** lat range for spawning: [min, max] */
   latRange: [number, number];
   /** lng range for spawning: [min, max] */
@@ -26,79 +39,72 @@ export interface UfoSpec {
   altitude: number;
   /** seconds the UFO stays alive before despawning */
   lifespan: number;
-  /** radians per second for saucer spin */
+  /** radians per second for saucer spin / tic-tac wobble */
   spinSpeed: number;
-  /** seconds per pulse cycle for orb */
-  pulseSpeed: number;
   /** drift speed in degrees/second */
   driftSpeed: number;
 }
 
-/**
- * The UFO pool. All saucers — Kate's call, no orbs (orbs read as too "thing
- * floating" instead of "spacecraft"). All in alien-green tones, kept varied
- * so the same one doesn't look like it's looping.
- */
 export const UFO_POOL: UfoSpec[] = [
   {
     kind: "saucer",
-    color: "#5cff8c",   // classic UFO green
-    glowIntensity: 0.5,
+    color: "#cdd6e1", // brushed silver
+    glowIntensity: 0.6,
+    scale: 1.0,
     latRange: [-45, 45],
     lngRange: [-180, 180],
     altitude: 0.22,
-    lifespan: 14,
-    spinSpeed: 0.7,
-    pulseSpeed: 0,
-    driftSpeed: 3.2,
-  },
-  {
-    kind: "saucer",
-    color: "#7fffae",   // mint
-    glowIntensity: 0.45,
-    latRange: [-40, 40],
-    lngRange: [-180, 180],
-    altitude: 0.25,
-    lifespan: 12,
+    lifespan: 13,
     spinSpeed: 0.9,
-    pulseSpeed: 0,
-    driftSpeed: 3.6,
-  },
-  {
-    kind: "saucer",
-    color: "#9affd0",   // pale-mint
-    glowIntensity: 0.4,
-    latRange: [-50, 50],
-    lngRange: [-180, 180],
-    altitude: 0.20,
-    lifespan: 16,
-    spinSpeed: 0.55,
-    pulseSpeed: 0,
     driftSpeed: 2.8,
   },
   {
     kind: "saucer",
-    color: "#43e07b",   // deeper alien green
-    glowIntensity: 0.55,
-    latRange: [-35, 35],
+    color: "#eef2f7", // bright chrome white
+    glowIntensity: 0.7,
+    scale: 0.85,
+    latRange: [-40, 40],
     lngRange: [-180, 180],
-    altitude: 0.28,
-    lifespan: 13,
-    spinSpeed: 1.1,
-    pulseSpeed: 0,
+    altitude: 0.25,
+    lifespan: 12,
+    spinSpeed: 1.25,
     driftSpeed: 3.0,
   },
   {
     kind: "saucer",
-    color: "#aaff80",   // chartreuse-green
-    glowIntensity: 0.45,
+    color: "#9aa5b3", // gunmetal / titanium (darker, reads as a bigger ship)
+    glowIntensity: 0.55,
+    scale: 1.15,
     latRange: [-42, 42],
     lngRange: [-180, 180],
+    altitude: 0.21,
+    lifespan: 14,
+    spinSpeed: 0.7,
+    driftSpeed: 2.6,
+  },
+  {
+    kind: "tictac",
+    color: "#dde3ec", // pale steel
+    glowIntensity: 0.5,
+    scale: 1.0,
+    latRange: [-35, 35],
+    lngRange: [-180, 180],
     altitude: 0.24,
-    lifespan: 15,
-    spinSpeed: 0.8,
-    pulseSpeed: 0,
-    driftSpeed: 3.4,
+    lifespan: 11,
+    spinSpeed: 0.4,
+    driftSpeed: 5.5, // tic-tacs move noticeably faster
+  },
+  {
+    kind: "tictac",
+    color: "#b3bcc8", // pewter
+    glowIntensity: 0.5,
+    scale: 0.85,
+    latRange: [-30, 30],
+    lngRange: [-180, 180],
+    altitude: 0.27,
+    lifespan: 11,
+    spinSpeed: 0.3,
+    driftSpeed: 6.2,
   },
 ];
 
@@ -113,9 +119,8 @@ export const TRANSMISSION_HEADER =
 
 /**
  * Pool of fictional transmission fragments shown in the modal.
- * These are original creative fiction — eerie, cryptic, deliberately
- * untethered from any real names, dates, or events.
- * They are flavor text and are explicitly framed as such.
+ * Original creative fiction — eerie, cryptic, deliberately untethered from any
+ * real names, dates, or events. Flavor text, explicitly framed as such.
  */
 export const TRANSMISSIONS: readonly string[] = [
   "THEY HAVE BEEN WATCHING THE WATER. THEY WERE HERE BEFORE THE NAMES. DO NOT LOOK DIRECTLY AT THE SIGNAL SOURCE.",
@@ -133,11 +138,7 @@ export const TRANSMISSIONS: readonly string[] = [
 /** Seeded random: pass a custom rnd for deterministic tests. */
 export type RndFn = () => number;
 
-/**
- * Pick a random UfoSpec from UFO_POOL and return a spawn-time snapshot
- * with randomized initial lat/lng within the spec's ranges.
- */
-export function randomUfoSpec(rnd: RndFn = Math.random): {
+export interface UfoSpawnSnapshot {
   spec: UfoSpec;
   lat: number;
   lng: number;
@@ -145,15 +146,27 @@ export function randomUfoSpec(rnd: RndFn = Math.random): {
   driftLat: number;
   /** drift direction in degrees — lng heading */
   driftLng: number;
-} {
-  const spec = UFO_POOL[Math.floor(rnd() * UFO_POOL.length)];
+}
+
+/**
+ * Pick a random UfoSpec, optionally excluding specs whose `color` is already
+ * in use (so two craft on screen at once never look identical), and return a
+ * spawn-time snapshot with randomized initial lat/lng + drift heading.
+ */
+export function randomUfoSpec(
+  rnd: RndFn = Math.random,
+  excludeColors: ReadonlySet<string> = new Set(),
+): UfoSpawnSnapshot {
+  const candidates =
+    excludeColors.size > 0
+      ? UFO_POOL.filter((s) => !excludeColors.has(s.color))
+      : UFO_POOL;
+  const pool = candidates.length > 0 ? candidates : UFO_POOL;
+  const spec = pool[Math.floor(rnd() * pool.length)];
   const lat = spec.latRange[0] + rnd() * (spec.latRange[1] - spec.latRange[0]);
   const lng = spec.lngRange[0] + rnd() * (spec.lngRange[1] - spec.lngRange[0]);
-  // Random drift heading (unit vector in lat/lng space, -1..1 each)
   const angle = rnd() * Math.PI * 2;
-  const driftLat = Math.sin(angle);
-  const driftLng = Math.cos(angle);
-  return { spec, lat, lng, driftLat, driftLng };
+  return { spec, lat, lng, driftLat: Math.sin(angle), driftLng: Math.cos(angle) };
 }
 
 // ─── Spawn manager ───────────────────────────────────────────────────────────
@@ -181,7 +194,7 @@ export interface SpawnManager {
 }
 
 interface SpawnManagerOptions {
-  /** Maximum concurrent UFOs (hard cap) */
+  /** Maximum concurrent UFOs (hard cap). Never more than 2 in practice. */
   cap?: number;
   /** Initial timestamp in ms */
   now: number;
@@ -194,10 +207,10 @@ interface SpawnManagerOptions {
 let _nextId = 1;
 
 export function makeSpawnManager({
-  cap = 1,
+  cap = 2,
   now,
   rnd = Math.random,
-  spawnIntervalMs = 35000,
+  spawnIntervalMs = 18000,
 }: SpawnManagerOptions): SpawnManager {
   const active = new Map<number, ActiveUfo>();
   let lastSpawnAttempt = now - spawnIntervalMs; // allow immediate first spawn
@@ -206,31 +219,19 @@ export function makeSpawnManager({
     const spawned: ActiveUfo[] = [];
     const despawned: number[] = [];
 
-    // Despawn expired UFOs
     for (const [id, ufo] of active) {
-      const ageMs = nowMs - ufo.spawnedAt;
-      if (ageMs >= ufo.spec.lifespan * 1000) {
+      if (nowMs - ufo.spawnedAt >= ufo.spec.lifespan * 1000) {
         active.delete(id);
         despawned.push(id);
       }
     }
 
-    // Try to spawn a new UFO (throttled + capped)
-    if (
-      active.size < cap &&
-      nowMs - lastSpawnAttempt >= spawnIntervalMs
-    ) {
+    if (active.size < cap && nowMs - lastSpawnAttempt >= spawnIntervalMs) {
       lastSpawnAttempt = nowMs;
-      const { spec, lat, lng, driftLat, driftLng } = randomUfoSpec(rnd);
-      const ufo: ActiveUfo = {
-        id: _nextId++,
-        spec,
-        lat,
-        lng,
-        driftLat,
-        driftLng,
-        spawnedAt: nowMs,
-      };
+      const inUse = new Set<string>();
+      for (const u of active.values()) inUse.add(u.spec.color);
+      const { spec, lat, lng, driftLat, driftLng } = randomUfoSpec(rnd, inUse);
+      const ufo: ActiveUfo = { id: _nextId++, spec, lat, lng, driftLat, driftLng, spawnedAt: nowMs };
       active.set(ufo.id, ufo);
       spawned.push(ufo);
     }
@@ -238,9 +239,5 @@ export function makeSpawnManager({
     return { spawned, despawned };
   }
 
-  function getActive(): ReadonlyMap<number, ActiveUfo> {
-    return active;
-  }
-
-  return { tick, getActive };
+  return { tick, getActive: () => active };
 }

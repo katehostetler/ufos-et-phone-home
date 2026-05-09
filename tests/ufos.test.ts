@@ -19,22 +19,26 @@ function makeLcg(seed: number) {
 // ── Pool ─────────────────────────────────────────────────────────────────────
 
 describe("UFO_POOL", () => {
-  it("contains at least 4 entries (variety so the same one doesn't loop)", () => {
+  it("contains at least 4 entries (variety so two on screen never look identical)", () => {
     expect(UFO_POOL.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("is saucers only — Kate dropped orbs", () => {
+  it("has only saucer + tic-tac kinds (no abstract orbs)", () => {
     for (const spec of UFO_POOL) {
-      expect(spec.kind).toBe("saucer");
+      expect(["saucer", "tictac"]).toContain(spec.kind);
     }
+    const kinds = new Set(UFO_POOL.map((s) => s.kind));
+    expect(kinds.has("saucer")).toBe(true);
+    expect(kinds.has("tictac")).toBe(true);
   });
 
   it("all entries have valid structure", () => {
     for (const spec of UFO_POOL) {
-      expect(["orb", "saucer"]).toContain(spec.kind);
+      expect(["saucer", "tictac"]).toContain(spec.kind);
       expect(spec.color).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(spec.glowIntensity).toBeGreaterThan(0);
       expect(spec.glowIntensity).toBeLessThanOrEqual(1);
+      expect(spec.scale).toBeGreaterThan(0);
       expect(spec.latRange[0]).toBeLessThan(spec.latRange[1]);
       expect(spec.lngRange[0]).toBeLessThan(spec.lngRange[1]);
       expect(spec.altitude).toBeGreaterThan(0);
@@ -42,21 +46,27 @@ describe("UFO_POOL", () => {
     }
   });
 
-  it("colors do not exactly match the pin palette", () => {
+  it("every entry is a unique colour (so two craft on screen differ)", () => {
+    const colors = UFO_POOL.map((s) => s.color.toLowerCase());
+    expect(new Set(colors).size).toBe(colors.length);
+  });
+
+  it("colors do not match the pin palette", () => {
     const pinColors = ["#ff3b3b", "#5ad7ff", "#ffc870"];
     for (const spec of UFO_POOL) {
       expect(pinColors).not.toContain(spec.color.toLowerCase());
     }
   });
 
-  it("colors are all greens (high green channel, dominant green)", () => {
+  it("colors are desaturated metallics (R≈G≈B, fairly light) — silver, not green", () => {
     for (const spec of UFO_POOL) {
       const r = parseInt(spec.color.slice(1, 3), 16);
       const g = parseInt(spec.color.slice(3, 5), 16);
       const b = parseInt(spec.color.slice(5, 7), 16);
-      expect(g).toBeGreaterThanOrEqual(r);
-      expect(g).toBeGreaterThanOrEqual(b);
-      expect(g).toBeGreaterThan(150); // visibly bright on the dark globe
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      expect(max - min).toBeLessThan(40); // low saturation → reads as metal
+      expect((r + g + b) / 3).toBeGreaterThan(120); // light enough to read on the dark globe
     }
   });
 });
@@ -120,8 +130,30 @@ describe("randomUfoSpec", () => {
     for (let i = 0; i < 50; i++) {
       colors.add(randomUfoSpec(rnd).spec.color);
     }
-    // With a 5-entry pool we should see most of them in 50 calls
     expect(colors.size).toBeGreaterThanOrEqual(3);
+  });
+
+  it("excludes already-in-use colours when asked (so two craft never match)", () => {
+    const rnd = makeLcg(13);
+    const inUse = new Set([UFO_POOL[0].color]);
+    for (let i = 0; i < 30; i++) {
+      const picked = randomUfoSpec(rnd, inUse);
+      expect(picked.spec.color).not.toBe(UFO_POOL[0].color);
+    }
+  });
+});
+
+describe("spawn manager dedup", () => {
+  it("never has two active UFOs with the same colour (cap 2)", () => {
+    const rnd = makeLcg(99);
+    const mgr = makeSpawnManager({ cap: 2, now: 0, rnd, spawnIntervalMs: 100 });
+    for (let t = 0; t <= 20_000; t += 50) {
+      mgr.tick(t);
+      const active = [...mgr.getActive().values()];
+      const colors = active.map((u) => u.spec.color);
+      expect(new Set(colors).size).toBe(colors.length);
+      expect(active.length).toBeLessThanOrEqual(2);
+    }
   });
 });
 

@@ -199,7 +199,7 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-enter" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-slide-in" onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
           <span className="loc">
             <span className="dot" />
@@ -217,7 +217,7 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           </button>
         </header>
 
-        <div className="modal-hero">
+        <div className={`modal-hero ${rec.mediaType === "vid" ? "is-video" : "is-still"}`}>
           {rec.mediaType === "vid" && rec.videoMp4Url ? (
             <video
               key={rec.id}
@@ -321,33 +321,45 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
       </div>
 
       <style>{`
+        /* Backdrop is only lightly darkened so the auto-rotating globe stays
+           visible behind the panel. Clicking the visible globe area closes. */
         .modal-backdrop {
           position: fixed; inset: 0;
-          background: rgba(0,0,0,.7);
-          backdrop-filter: blur(4px);
+          background: rgba(2,4,8,.42);
+          backdrop-filter: blur(2px);
           z-index: 100;  /* above Hud (z-index 7) and dock (7) */
-          display: flex; align-items: center; justify-content: center;
-          /* top padding clears the 56px Hud + buffer; bottom clears the 56px dock */
-          padding: 80px 24px 80px;
-          overflow-y: auto;
+          display: flex; align-items: stretch; justify-content: flex-start;
         }
+        /* The record panel — docked to the left, ~60vw, full height. The WHOLE
+           panel scrolls as one unit; no skinny inner scroll box. */
         .modal {
-          width: 100%; max-width: 760px;
-          background: linear-gradient(180deg, rgba(20,8,12,.96) 0%, rgba(8,12,20,.96) 100%);
-          border: 1px solid rgba(106,255,200,.3);
-          border-radius: 4px;
+          width: clamp(420px, 60vw, 780px);
+          height: 100%;
+          background: linear-gradient(180deg, rgba(16,8,12,.985) 0%, rgba(6,10,16,.985) 100%);
+          border-right: 1px solid rgba(106,255,200,.35);
+          box-shadow: 8px 0 40px rgba(0,0,0,.6), 0 0 80px rgba(106,255,200,.08) inset;
           color: #e8edf3;
-          box-shadow: 0 0 30px rgba(0,0,0,.7), 0 0 60px rgba(106,255,200,.1);
           font-family: var(--font-mono);
-          display: flex; flex-direction: column;
-          max-height: calc(100vh - 160px);
-          overflow: hidden;
+          overflow-y: auto;
+          overflow-x: hidden;
         }
+        .modal-slide-in { animation: modal-slide-in .25s ease-out; }
+        @keyframes modal-slide-in {
+          from { transform: translateX(-24px); opacity: 0; }
+          to   { transform: translateX(0); opacity: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .modal-slide-in { animation: none; }
+        }
+        /* Header sticks to the top of the scrolling panel so BACK TO GLOBE is
+           always reachable. */
         .modal-head {
+          position: sticky; top: 0; z-index: 3;
           display: flex; align-items: center; gap: 14px;
           padding: 14px 18px;
           border-bottom: 1px solid var(--color-line);
-          flex-shrink: 0;
+          background: rgba(8,11,17,.96);
+          backdrop-filter: blur(6px);
         }
         .loc {
           color: var(--color-hud);
@@ -405,25 +417,31 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           background: #04060b;
           border-bottom: 1px solid var(--color-line);
           width: 100%;
-          /* video plays at 16/9, but never taller than 50% of viewport so the
-             blurb has room. on extra-tall windows we cap at 480px. */
-          aspect-ratio: 16/9;
-          max-height: min(50vh, 480px);
-          min-height: 200px;
           overflow: hidden;
           display: flex; align-items: center; justify-content: center;
-          flex-shrink: 0;
         }
-        .modal-hero iframe {
+        /* Video / DVIDS embeds: fixed 16/9 frame. */
+        .modal-hero.is-video {
+          aspect-ratio: 16/9;
+          max-height: min(56vh, 480px);
+          min-height: 200px;
+        }
+        .modal-hero.is-video iframe,
+        .modal-hero.is-video video {
           width: 100%; height: 100%;
           border: 0;
+          object-fit: contain;
+          background: #06080d;
           display: block;
         }
-        .modal-hero img,
-        .modal-hero video {
-          width: 100%; height: 100%;
+        /* Stills (photos / PDF cover thumbnails): show at natural aspect, just
+           cap the height so they don't push the title miles down. */
+        .modal-hero.is-still img {
+          width: 100%;
+          height: auto;
+          max-height: min(64vh, 620px);
           object-fit: contain;
-          object-position: center;
+          object-position: top center;
           background: #06080d;
           display: block;
         }
@@ -434,13 +452,11 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           color: rgba(255,255,255,.4);
           font-size: 11px;
           letter-spacing: .15em;
+          padding: 48px 0;
         }
 
         .modal-body {
-          padding: 20px 22px 22px;
-          overflow-y: auto;
-          flex: 1 1 auto;
-          min-height: 0;
+          padding: 22px 24px 26px;
         }
         .modal-title {
           font-family: var(--font-display);
@@ -556,12 +572,14 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           background: #8affe0;
         }
 
+        .modal-actions {
+          margin-top: 18px;
+        }
         .modal-nav {
           display: flex;
           justify-content: space-between;
-          padding: 10px 18px;
+          padding: 14px 24px 18px;
           border-top: 1px solid var(--color-line);
-          flex-shrink: 0;
         }
         .modal-nav button {
           background: transparent;
@@ -581,91 +599,50 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           opacity: .25; cursor: not-allowed;
         }
 
-        /* MOBILE: full-screen modal with stacking layout */
+        /* MOBILE: panel goes full-screen (no room for the globe behind), but
+           still scrolls as one continuous unit with a sticky header. */
         @media (max-width: 768px) {
-          .modal-backdrop {
-            padding: 0;
-            align-items: stretch;
-            /* keep z-index 100 set above */
-          }
+          .modal-backdrop { background: rgba(2,4,8,.6); }
           .modal {
-            max-width: none;
-            max-height: none;
-            min-height: 100vh;
-            border-radius: 0;
-            border: none;
+            width: 100%;
+            border-right: none;
             border-top: 1px solid rgba(106,255,200,.3);
+            box-shadow: none;
           }
           .modal-head {
-            padding: 12px 14px;
+            padding: 10px 12px;
             gap: 8px;
             flex-wrap: wrap;
+            /* extra top space for the notch / status bar on edge-to-edge phones */
+            padding-top: calc(10px + env(safe-area-inset-top, 0px));
           }
-          .modal-head .loc {
-            font-size: 9px;
-            letter-spacing: .18em;
-          }
-          .modal-head .counter {
-            font-size: 9px;
-          }
-          /* Beef up the close button on mobile so users always know how to
-             get back to the globe */
+          .modal-head .loc { font-size: 9px; letter-spacing: .18em; }
+          .modal-head .counter { font-size: 9px; }
+          /* Big obvious close button on mobile */
           .close-btn {
             height: 36px;
             padding: 0 14px;
-            background: rgba(106,255,200,.14);
+            background: rgba(106,255,200,.16);
             border-color: var(--color-hud);
-            font-weight: 600;
+            font-weight: 700;
           }
           .close-x { font-size: 15px; }
-          .modal-hero {
-            aspect-ratio: 16/9;
-            max-height: 45vh;
-            min-height: 180px;
-          }
-          .modal-body {
-            padding: 16px 16px 0;
-          }
-          /* Pin the action bar to the bottom of the scroll box on mobile so
-             the (sometimes red) primary button never floats over content. */
-          .modal-actions {
-            position: sticky;
-            bottom: 0;
-            margin: 8px -16px 0;
-            padding: 12px 16px 14px;
-            background: linear-gradient(180deg, rgba(8,12,20,0) 0%, rgba(4,6,11,.96) 30%);
-            backdrop-filter: blur(6px);
-            border-top: 1px solid var(--color-line);
-            z-index: 1;
-          }
-          .modal-title {
-            font-size: 15px;
-          }
-          .modal-meta {
-            gap: 8px 14px;
-            font-size: 9px;
-          }
-          .modal-blurb {
-            font-size: 12.5px;
-            line-height: 1.6;
-          }
-          .modal-actions {
-            gap: 8px;
-          }
+          .modal-hero.is-video { max-height: 42vh; min-height: 170px; }
+          .modal-hero.is-still img { max-height: 56vh; }
+          .modal-body { padding: 16px 16px 24px; }
+          .modal-title { font-size: 16px; }
+          .modal-meta { gap: 8px 14px; font-size: 9px; }
+          .modal-blurb { font-size: 13px; line-height: 1.62; }
+          .modal-actions { gap: 8px; }
           .action {
-            padding: 10px 14px;
+            padding: 11px 14px;
             font-size: 10px;
             flex: 1 1 auto;
             justify-content: center;
             text-align: center;
           }
-          .modal-nav {
-            padding: 10px 14px;
-          }
-          .modal-nav button {
-            padding: 8px 16px;
-            font-size: 10px;
-          }
+          .modal-nav { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+          .modal-nav button { padding: 9px 16px; font-size: 10px; }
         }
       `}</style>
     </div>
