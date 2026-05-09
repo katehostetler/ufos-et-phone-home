@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Portal from "./Portal";
 import type { FeaturedRecord } from "@/lib/featured";
 
 interface Props {
@@ -52,6 +53,7 @@ export default function HallOfFameOverlay({ featured }: Props) {
   };
 
   return (
+    <Portal>
     <div
       className="hof-overlay"
       role="dialog"
@@ -112,5 +114,6 @@ export default function HallOfFameOverlay({ featured }: Props) {
         </ul>
       </div>
     </div>
+    </Portal>
   );
 }

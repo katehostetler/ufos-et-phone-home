@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import Portal from "./Portal";
 import type { Record } from "@/types/record";
 
 interface Props {
@@ -198,6 +199,7 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
   if (!rec) return null;
 
   return (
+    <Portal>
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal modal-slide-in" onClick={(e) => e.stopPropagation()}>
         <header className="modal-head">
@@ -646,5 +648,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
         }
       `}</style>
     </div>
+    </Portal>
   );
 }

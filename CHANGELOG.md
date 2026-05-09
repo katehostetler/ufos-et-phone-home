@@ -48,3 +48,12 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 
 ### Added
 - **PinRail** (`src/components/PinRail.tsx`) — the top-bar type chips (VIDEO / PHOTO / DOCUMENT) no longer toggle pin visibility (Kate: "no one's going to do that"); clicking one now opens a slim left-docked rail of mini record-cards for that media type, while the auto-rotating globe stays visible to the right. As you scroll the rail, the card crossing its vertical centre becomes "active" (highlighted in the type colour) and the globe flies to that record's pin; clicking a card opens the full RecordModal. The label changed from "⏵ FILTER PINS" to "⏵ BROWSE PINS"; the per-type pin-visibility filter was removed (all located pins always show now). Esc / the ✕ / clicking the visible globe closes the rail.
+
+### Fixed
+- **Overlays were rendering *under* the Hud** — `RecordModal`, `QueuePanel`, `TransmissionModal` and `HallOfFameOverlay` are mounted deep inside `.globe-page` (which is `position: fixed`, so it forms its own stacking context that paints below the Hud's `z-index: 7`). On mobile that meant the modal's sticky header — and its `✕ BACK TO GLOBE` button — got covered by the Hud. Fixed by portalling all four overlays to `document.body` via a new `src/components/Portal.tsx`, so their z-index actually wins.
+
+### Changed (more)
+- Bottom-dock label "▤ BROWSE GALLERY" wraps to two lines, and the mobile dock spacing was tightened, so the `⊕ 47 LOCATION UNKNOWN` chip now fits on screen without horizontal scrolling.
+- **Hall of Fame is purple now** — the `★ HALL OF FAME` chip, the overlay header, the hook line, the rail scrollbar, card hover rings, etc. all moved from green to the `--color-hof` (`#d4b3ff`) purple that "ET PHONE HOME" uses.
+- /about page: the bottom "Source" link is now a two-box "SOURCE · WAR.GOV/UFO →" + "CREATOR · KATE.AI →" row (the creator box links to https://kate.ai in purple).
+- Globe sharpness: max anisotropic filtering applied to the earth texture (+ bump/specular/emissive maps) so it stays crisp at glancing angles and when zoomed in. City-light twinkle intensity bumped slightly (0.22 → 0.30) so it's more visibly "alive".

@@ -35,7 +35,7 @@ const featured = resolveFeatured(featuredRaw as any, all);
     <button type="button" class="chip hof-chip" data-open="hall-of-fame" title="The wildest files in the release">★ HALL OF FAME</button>
 
     <footer class="dock">
-      <span class="dock-label">▤ BROWSE GALLERY</span>
+      <span class="dock-label">▤ BROWSE<br />GALLERY</span>
       <a href="/videos" data-queue="vid" class="chip vid active chip-icon" title={`Browse all ${counts.vid} videos`} aria-label={`Browse all ${counts.vid} videos`}>
         <span class="swatch"></span><span class="chip-glyph">▶</span>
       </a>
@@ -141,11 +141,13 @@ const featured = resolveFeatured(featuredRaw as any, all);
   .dock-label {
     font-size: 9px;
     letter-spacing: .22em;
+    line-height: 1.35;
     color: var(--color-hud);
-    padding-right: 8px;
+    padding-right: 9px;
     border-right: 1px solid rgba(106,255,200,.25);
     margin-right: 2px;
     flex-shrink: 0;
+    text-align: left;
   }
 
   /* mobile-only declassified stamp */
@@ -253,12 +255,12 @@ const featured = resolveFeatured(featuredRaw as any, all);
       padding-right: 6px;
     }
 
-    /* Dock — horizontal scroll if it overflows */
+    /* Dock — sized so the LOCATION UNKNOWN chip fits without horizontal scroll */
     .dock {
       height: 52px;
-      gap: 7px;
-      justify-content: flex-start;
-      padding: 0 10px;
+      gap: 5px;
+      justify-content: center;
+      padding: 0 6px;
       overflow-x: auto;
       overflow-y: hidden;
       -webkit-overflow-scrolling: touch;
@@ -268,9 +270,13 @@ const featured = resolveFeatured(featuredRaw as any, all);
     .dock::-webkit-scrollbar { display: none; }
     .dock .chip {
       flex: 0 0 auto;
-      padding: 6px 11px;
-      font-size: 9px;
+      padding: 6px 8px;
+      font-size: 8.5px;
+      letter-spacing: .08em;
     }
+    .dock .chip-icon { padding: 5px 9px; }
+    .dock .chip-icon .chip-glyph { font-size: 15px; }
+    .dock-label { padding-right: 7px; margin-right: 0; }
 
     .banner-instr {
       bottom: 64px;

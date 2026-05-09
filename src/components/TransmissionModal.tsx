@@ -1,4 +1,5 @@
 import { useEffect, useCallback } from "react";
+import Portal from "./Portal";
 import { TRANSMISSION_HEADER } from "@/lib/ufos";
 
 interface TransmissionModalProps {
@@ -32,6 +33,7 @@ export default function TransmissionModal({
   if (!text) return null;
 
   return (
+    <Portal>
     <div
       className="tx-overlay"
       data-testid="tx-overlay"
@@ -78,5 +80,6 @@ export default function TransmissionModal({
         </div>
       </div>
     </div>
+    </Portal>
   );
 }

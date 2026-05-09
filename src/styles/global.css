@@ -3,6 +3,7 @@
 @theme {
   --color-bg:        #04060b;
   --color-hud:       #6affc8;
+  --color-hof:       #d4b3ff;  /* Hall of Fame / "ET PHONE HOME" purple accent */
   --color-vid:       #ff3b3b;
   --color-img:       #5ad7ff;
   --color-pdf:       #ffc870;
@@ -213,27 +214,27 @@ body::after {
 /* HALL OF FAME — chip, overlay, card rail                       */
 /* ============================================================ */
 
-/* Chip pinned bottom-left, above the 56px dock */
+/* Chip pinned bottom-left, above the 56px dock — purple, matching "ET PHONE HOME" */
 .hof-chip {
   position: fixed;
   left: 12px;
   bottom: 64px;
   z-index: 7;
-  color: var(--color-hud);
-  border-color: rgba(106,255,200,.5);
-  background: rgba(106,255,200,.08);
+  color: var(--color-hof);
+  border-color: rgba(199,148,255,.55);
+  background: rgba(168,99,255,.1);
   /* Subtle pulse for the first ~12s so the chip is discoverable, then settles down */
   animation: hof-pulse 2.4s ease-in-out 5 forwards;
 }
 .hof-chip:hover,
 .hof-chip:focus-visible {
-  background: rgba(106,255,200,.18);
-  box-shadow: 0 0 14px rgba(106,255,200,.45);
+  background: rgba(168,99,255,.2);
+  box-shadow: 0 0 14px rgba(199,148,255,.5);
   animation: none; /* stop pulsing once user interacts */
 }
 @keyframes hof-pulse {
-  0%, 100% { box-shadow: 0 0 0 rgba(106,255,200,0); }
-  50%      { box-shadow: 0 0 16px rgba(106,255,200,.55); }
+  0%, 100% { box-shadow: 0 0 0 rgba(199,148,255,0); }
+  50%      { box-shadow: 0 0 16px rgba(199,148,255,.55); }
 }
 @media (prefers-reduced-motion: reduce) {
   .hof-chip { animation: none; }
@@ -260,9 +261,9 @@ body::after {
   margin: 0 auto;
   padding: 28px 28px 24px;
   background: rgba(4,8,16,.92);
-  border: 1px solid var(--color-line);
+  border: 1px solid rgba(199,148,255,.25);
   border-radius: 4px;
-  box-shadow: 0 0 40px rgba(106,255,200,.12), 0 16px 64px rgba(0,0,0,.7);
+  box-shadow: 0 0 40px rgba(168,99,255,.14), 0 16px 64px rgba(0,0,0,.7);
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -271,21 +272,22 @@ body::after {
 /* HUD-style header */
 .hof-header {
   padding-bottom: 12px;
-  border-bottom: 1px solid var(--color-line);
+  border-bottom: 1px solid rgba(199,148,255,.2);
 }
 .hof-header-title {
   display: block;
   font-family: var(--font-display);
   font-size: 14px;
   letter-spacing: .22em;
-  color: var(--color-hud);
+  color: var(--color-hof);
+  text-shadow: 0 0 14px rgba(199,148,255,.5);
   text-transform: uppercase;
 }
 .hof-header-sub {
   margin: 4px 0 0;
   font-size: 9px;
   letter-spacing: .2em;
-  color: rgba(106,255,200,.5);
+  color: rgba(199,148,255,.55);
   font-family: var(--font-mono);
   text-transform: uppercase;
 }
@@ -311,8 +313,8 @@ body::after {
 }
 .hof-close:hover {
   color: #fff;
-  border-color: var(--color-hud);
-  background: rgba(106,255,200,.08);
+  border-color: var(--color-hof);
+  background: rgba(168,99,255,.12);
 }
 
 /* Horizontal scroll-snap rail (desktop/tablet) */
@@ -326,11 +328,11 @@ body::after {
   margin: 0;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
-  scrollbar-color: rgba(106,255,200,.3) transparent;
+  scrollbar-color: rgba(199,148,255,.35) transparent;
 }
 .hof-rail::-webkit-scrollbar { height: 4px; }
 .hof-rail::-webkit-scrollbar-track { background: transparent; }
-.hof-rail::-webkit-scrollbar-thumb { background: rgba(106,255,200,.3); border-radius: 2px; }
+.hof-rail::-webkit-scrollbar-thumb { background: rgba(199,148,255,.35); border-radius: 2px; }
 
 /* Stagger-fade animation when motion is allowed */
 @keyframes hof-in {
@@ -361,8 +363,8 @@ body::after {
   flex-direction: column;
 }
 .hof-card-btn:hover {
-  border-color: var(--color-hud);
-  box-shadow: 0 0 14px rgba(106,255,200,.2);
+  border-color: var(--color-hof);
+  box-shadow: 0 0 14px rgba(168,99,255,.22);
 }
 
 /* Thumbnail area */
@@ -432,11 +434,11 @@ body::after {
 .hof-hook {
   font-size: 11px;
   line-height: 1.4;
-  color: var(--color-hud);
+  color: var(--color-hof);
   font-family: var(--font-mono);
   font-style: italic;
   padding: 4px 0 2px;
-  border-top: 1px dashed rgba(106,255,200,.2);
+  border-top: 1px dashed rgba(199,148,255,.22);
   margin-top: 4px;
 }
 .hof-blurb {
