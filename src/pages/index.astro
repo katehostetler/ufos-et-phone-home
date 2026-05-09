@@ -26,21 +26,35 @@ const counts = {
     <GlobeApp client:only="react" records={all} />
 
     <footer class="dock">
-      <a href="/videos" class="chip vid active">
+      <a href="/videos" data-queue="vid" class="chip vid active">
         <span class="swatch"></span>{counts.vid} VIDEOS
       </a>
-      <a href="/photos" class="chip img active">
+      <a href="/photos" data-queue="img" class="chip img active">
         <span class="swatch"></span>{counts.img} PHOTOS
       </a>
-      <a href="/files" class="chip pdf active">
+      <a href="/files" data-queue="pdf" class="chip pdf active">
         <span class="swatch"></span>{counts.pdf} FILES
       </a>
-      <a href="/no-location" class="chip">⊕ {counts.unmapped} NO-LOC</a>
+      <a href="/no-location" data-queue="noloc" class="chip">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
     </footer>
 
     <div class="banner-instr">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
   </main>
 </Base>
+
+<script>
+  // On the homepage, dock chips open the in-place queue browser instead of
+  // navigating away. They still degrade to the gallery page if JS is off.
+  document.addEventListener("click", (e) => {
+    const target = e.target as HTMLElement | null;
+    const trigger = target?.closest?.("[data-queue]") as HTMLElement | null;
+    if (!trigger) return;
+    const type = trigger.dataset.queue;
+    if (!type) return;
+    e.preventDefault();
+    window.dispatchEvent(new CustomEvent("open-queue", { detail: type }));
+  });
+</script>
 
 <style>
   .globe-page {

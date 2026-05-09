@@ -11,12 +11,13 @@ const { recordCount } = Astro.props;
     <span class="logo-sub">/ ET PHONE HOME</span>
   </a>
   <span class="clock" id="clock">UTC --:--:--</span>
-  <nav class="primary-nav">
-    <a href="/videos">VIDEOS</a>
-    <a href="/photos">PHOTOS</a>
-    <a href="/files">FILES</a>
-    <a href="/no-location">NO-LOC</a>
-    <a href="/about">ABOUT</a>
+  <nav class="primary-nav" aria-label="Browse archive">
+    <span class="nav-label">BROWSE:</span>
+    <a href="/videos"><span class="nav-glyph">▶</span>VIDEOS</a>
+    <a href="/photos"><span class="nav-glyph">⊡</span>PHOTOS</a>
+    <a href="/files"><span class="nav-glyph">▤</span>FILES</a>
+    <a href="/no-location"><span class="nav-glyph">⊕</span>LOC UNKNOWN</a>
+    <a href="/about" class="nav-about"><span class="nav-glyph">ⓘ</span>ABOUT</a>
   </nav>
   <span class="stamp">DECLASSIFIED · RELEASE_01 · {recordCount} RECORDS</span>
 </header>
@@ -65,10 +66,22 @@ const { recordCount } = Astro.props;
   }
   .primary-nav {
     display: flex;
-    gap: 16px;
+    align-items: center;
+    gap: 14px;
     margin-left: auto;
   }
+  .nav-label {
+    font-size: 9px;
+    letter-spacing: .25em;
+    color: rgba(106,255,200,.55);
+    padding-right: 4px;
+    border-right: 1px solid rgba(106,255,200,.2);
+    text-transform: uppercase;
+  }
   .primary-nav a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 10px;
     letter-spacing: .2em;
     color: rgba(232,237,243,.6);
@@ -76,6 +89,13 @@ const { recordCount } = Astro.props;
     transition: color .15s;
   }
   .primary-nav a:hover { color: var(--color-hud); }
+  .nav-glyph {
+    font-size: 11px;
+    color: rgba(106,255,200,.7);
+    line-height: 1;
+    letter-spacing: 0;
+  }
+  .primary-nav a:hover .nav-glyph { color: var(--color-hud); }
   .stamp {
     font-size: 9px;
     letter-spacing: .2em;
@@ -96,11 +116,12 @@ const { recordCount } = Astro.props;
     }
     .logo-sub { display: none; }
     .clock { margin-left: 0; }
-    .primary-nav { gap: 12px; }
+    .primary-nav { gap: 10px; }
+    .nav-label { display: none; }
     .stamp { font-size: 8px; padding: 3px 7px; letter-spacing: .15em; }
   }
 
-  /* Mobile */
+  /* Mobile — show glyphs only, hide text labels */
   @media (max-width: 767px) {
     .top {
       height: 48px;
@@ -111,24 +132,30 @@ const { recordCount } = Astro.props;
     .logo-sub { display: none; }
     .clock { display: none; }
     .stamp { display: none; }
+    .nav-label { display: none; }
     .primary-nav {
-      gap: 10px;
+      gap: 14px;
       margin-left: auto;
     }
     .primary-nav a {
-      font-size: 9px;
-      letter-spacing: .15em;
+      font-size: 0;
+      letter-spacing: 0;
+      gap: 0;
+    }
+    .nav-glyph {
+      font-size: 14px;
+      color: rgba(106,255,200,.85);
     }
   }
 
-  /* Very small mobile — keep core nav links visible */
+  /* Very small mobile — keep glyphs visible */
   @media (max-width: 480px) {
     .top {
       padding: 0 10px 0 28px;
       gap: 6px;
     }
-    .primary-nav { gap: 7px; }
-    .primary-nav a { font-size: 8.5px; letter-spacing: .1em; }
+    .primary-nav { gap: 11px; }
+    .nav-glyph { font-size: 13px; }
   }
 </style>
 

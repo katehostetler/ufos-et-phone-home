@@ -5,7 +5,7 @@ const { record } = Astro.props;
 ---
 
 <article class={`card ${record.mediaType}`}>
-  <a href={record.assetUrl || record.sourcePage} target="_blank" rel="noopener">
+  <button class="card-link" data-record-id={record.id} type="button" aria-label={`Open ${record.title}`}>
     <div class="thumb">
       {record.thumbnailUrl ? (
         <img src={record.thumbnailUrl} alt={record.title} loading="lazy" />
@@ -22,7 +22,7 @@ const { record } = Astro.props;
       <h3 class="card-title">{record.title}</h3>
       {record.location && <div class="card-loc">⊙ {record.location.name}</div>}
     </div>
-  </a>
+  </button>
 </article>
 
 <style>
@@ -34,7 +34,19 @@ const { record } = Astro.props;
     transition: all .2s;
   }
   .card:hover { border-color: var(--color-hud); transform: translateY(-2px); }
-  .card a { text-decoration: none; color: inherit; display: block; }
+  .card-link {
+    all: unset;
+    display: block;
+    cursor: pointer;
+    width: 100%;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+  .card-link:focus-visible {
+    outline: 2px solid var(--color-hud);
+    outline-offset: 2px;
+  }
 
   .thumb {
     aspect-ratio: 3/4;

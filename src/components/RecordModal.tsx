@@ -10,6 +10,7 @@ const TYPE_LABEL = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
 
 export default function RecordModal({ records, onClose }: Props) {
   const [idx, setIdx] = useState(0);
+  const [speaking, setSpeaking] = useState(false);
   const rec = records[idx];
 
   useEffect(() => {
@@ -21,6 +22,40 @@ export default function RecordModal({ records, onClose }: Props) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [records.length, onClose]);
+
+  // Stop TTS whenever the active record changes or the modal closes.
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined") window.speechSynthesis?.cancel?.();
+    };
+  }, []);
+  useEffect(() => {
+    if (typeof window !== "undefined") window.speechSynthesis?.cancel?.();
+    setSpeaking(false);
+  }, [idx]);
+
+  function speakBlurb() {
+    if (typeof window === "undefined" || !window.speechSynthesis || !rec.blurb) return;
+    if (speaking) {
+      window.speechSynthesis.cancel();
+      setSpeaking(false);
+      return;
+    }
+    const utt = new SpeechSynthesisUtterance(rec.blurb);
+    utt.rate = 0.95;
+    utt.pitch = 0.92;
+    const voices = window.speechSynthesis.getVoices();
+    // pick the most natural-sounding English voice we can find
+    const preferred =
+      voices.find((v) => /en-(US|GB)/.test(v.lang) && /enhanced|premium|natural/i.test(v.name)) ||
+      voices.find((v) => /en-(US|GB)/.test(v.lang) && /alex|daniel|david|samantha|karen/i.test(v.name)) ||
+      voices.find((v) => v.lang.startsWith("en"));
+    if (preferred) utt.voice = preferred;
+    utt.onend = () => setSpeaking(false);
+    utt.onerror = () => setSpeaking(false);
+    window.speechSynthesis.speak(utt);
+    setSpeaking(true);
+  }
 
   if (!rec) return null;
 
@@ -44,7 +79,16 @@ export default function RecordModal({ records, onClose }: Props) {
         </header>
 
         <div className="modal-hero">
-          {rec.mediaType === "vid" && rec.dvidsVideoId ? (
+          {rec.mediaType === "vid" && rec.videoMp4Url ? (
+            <video
+              key={rec.id}
+              controls
+              playsInline
+              preload="metadata"
+              poster={rec.thumbnailUrl ?? undefined}
+              src={rec.videoMp4Url}
+            />
+          ) : rec.mediaType === "vid" && rec.dvidsVideoId ? (
             <iframe
               src={`https://www.dvidshub.net/video/embed/${rec.dvidsVideoId}`}
               allowFullScreen
@@ -78,7 +122,20 @@ export default function RecordModal({ records, onClose }: Props) {
             {rec.redaction === "TRUE" && <span className="redacted">REDACTED</span>}
           </div>
 
-          {rec.blurb && <p className="modal-blurb">{rec.blurb}</p>}
+          {rec.blurb && (
+            <div className="modal-blurb-block">
+              <button
+                className={`tts-btn ${speaking ? "playing" : ""}`}
+                onClick={speakBlurb}
+                aria-label={speaking ? "Stop reading" : "Read aloud"}
+                title={speaking ? "Stop reading" : "Read aloud"}
+              >
+                <span className="tts-icon">{speaking ? "■" : "▶"}</span>
+                <span className="tts-label">{speaking ? "STOP" : "LISTEN"}</span>
+              </button>
+              <p className="modal-blurb">{rec.blurb}</p>
+            </div>
+          )}
 
           <div className="modal-actions">
             {rec.assetUrl && (
@@ -116,9 +173,10 @@ export default function RecordModal({ records, onClose }: Props) {
           position: fixed; inset: 0;
           background: rgba(0,0,0,.7);
           backdrop-filter: blur(4px);
-          z-index: 50;
+          z-index: 100;  /* above Hud (z-index 7) and dock (7) */
           display: flex; align-items: center; justify-content: center;
-          padding: 24px;
+          /* top padding clears the 56px Hud + buffer; bottom clears the 56px dock */
+          padding: 80px 24px 80px;
           overflow-y: auto;
         }
         .modal {
@@ -130,7 +188,7 @@ export default function RecordModal({ records, onClose }: Props) {
           box-shadow: 0 0 30px rgba(0,0,0,.7), 0 0 60px rgba(106,255,200,.1);
           font-family: var(--font-mono);
           display: flex; flex-direction: column;
-          max-height: calc(100vh - 48px);
+          max-height: calc(100vh - 160px);
           overflow: hidden;
         }
         .modal-head {
@@ -198,11 +256,16 @@ export default function RecordModal({ records, onClose }: Props) {
           border: 0;
           display: block;
         }
-        .modal-hero img {
+        .modal-hero img,
+        .modal-hero video {
           width: 100%; height: 100%;
           object-fit: contain;
           object-position: center;
           background: #06080d;
+          display: block;
+        }
+        .modal-hero video::-webkit-media-controls-panel {
+          background: rgba(8,12,20,.6);
         }
         .modal-hero-placeholder {
           color: rgba(255,255,255,.4);
@@ -246,11 +309,47 @@ export default function RecordModal({ records, onClose }: Props) {
           border-radius: 2px;
           background: rgba(255,59,59,.06);
         }
-        .modal-blurb {
+        .modal-blurb-block {
           margin: 14px 0 18px;
+          position: relative;
+        }
+        .modal-blurb {
+          margin: 0;
           font-size: 13px;
           line-height: 1.65;
           color: #d8dde6;
+        }
+        .tts-btn {
+          float: right;
+          margin: 0 0 6px 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 10px;
+          font-family: var(--font-mono);
+          font-size: 9px;
+          letter-spacing: .18em;
+          background: rgba(106,255,200,.05);
+          border: 1px solid rgba(106,255,200,.4);
+          color: var(--color-hud);
+          border-radius: 2px;
+          cursor: pointer;
+          transition: all .15s;
+        }
+        .tts-btn:hover {
+          background: rgba(106,255,200,.12);
+          border-color: var(--color-hud);
+        }
+        .tts-btn.playing {
+          background: rgba(255,59,59,.08);
+          border-color: rgba(255,59,59,.5);
+          color: var(--color-vid);
+          animation: tts-pulse 1.4s ease-in-out infinite;
+        }
+        .tts-icon { font-size: 8px; }
+        @keyframes tts-pulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(255,59,59,0); }
+          50%      { box-shadow: 0 0 14px rgba(255,59,59,.4); }
         }
         .modal-actions {
           display: flex;
@@ -309,6 +408,7 @@ export default function RecordModal({ records, onClose }: Props) {
           .modal-backdrop {
             padding: 0;
             align-items: stretch;
+            /* keep z-index 100 set above */
           }
           .modal {
             max-width: none;

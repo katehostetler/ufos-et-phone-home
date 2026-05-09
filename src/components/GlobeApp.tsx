@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe from "react-globe.gl";
 import type { GlobeMethods } from "react-globe.gl";
 import * as THREE from "three";
 import RecordModal from "./RecordModal";
+import QueuePanel from "./QueuePanel";
 import type { Record, MediaType } from "@/types/record";
 
 const COLORS: Record<MediaType, string> = {
@@ -10,6 +11,8 @@ const COLORS: Record<MediaType, string> = {
   img: "#5ad7ff",
   pdf: "#ffc870",
 };
+
+type QueueType = MediaType | "noloc";
 
 interface Props {
   records: Record[];
@@ -19,12 +22,41 @@ export default function GlobeApp({ records }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const [size, setSize] = useState({ w: 800, h: 600 });
+  const [isTouch, setIsTouch] = useState(false);
   const [active, setActive] = useState<{ vid: boolean; img: boolean; pdf: boolean }>({
     vid: true,
     img: true,
     pdf: true,
   });
   const [modalRecords, setModalRecords] = useState<Record[] | null>(null);
+  const [queueType, setQueueType] = useState<QueueType | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: coarse)");
+    setIsTouch(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsTouch(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // listen for the dock chips' "open-queue" event from index.astro
+  useEffect(() => {
+    function onOpen(e: Event) {
+      const detail = (e as CustomEvent<QueueType>).detail;
+      if (detail) setQueueType(detail);
+    }
+    window.addEventListener("open-queue", onOpen);
+    return () => window.removeEventListener("open-queue", onOpen);
+  }, []);
+
+  // when the queue's active record changes, fly the globe to its pin (if any)
+  const onQueueActiveChange = useCallback((rec: Record) => {
+    if (!rec.location || !globeRef.current) return;
+    globeRef.current.pointOfView(
+      { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
+      900,
+    );
+  }, []);
 
   // resize globe to container
   useEffect(() => {
@@ -217,7 +249,11 @@ export default function GlobeApp({ records }: Props) {
           pointLat={(d: any) => d.location.lat}
           pointLng={(d: any) => d.location.lng}
           pointAltitude={0.012}
-          pointRadius={(d: any) => (d.location.regional ? 0.55 : 0.42)}
+          pointRadius={(d: any) => {
+            const base = d.location.regional ? 0.55 : 0.42;
+            // Touch devices need a much larger hit area to register reliably.
+            return isTouch ? base * 2.0 : base;
+          }}
           pointColor={(d: any) => COLORS[d.mediaType as MediaType]}
           pointLabel={(d: any) => `
             <div class="pin-tooltip">
@@ -240,6 +276,16 @@ export default function GlobeApp({ records }: Props) {
       {/* modal */}
       {modalRecords && (
         <RecordModal records={modalRecords} onClose={() => setModalRecords(null)} />
+      )}
+
+      {/* queue / coverflow browser */}
+      {queueType && (
+        <QueuePanel
+          type={queueType}
+          allRecords={records}
+          onClose={() => setQueueType(null)}
+          onActiveChange={onQueueActiveChange}
+        />
       )}
     </>
   );
