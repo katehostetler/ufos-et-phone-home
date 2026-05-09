@@ -186,8 +186,8 @@ export default function QueuePanel({ type, allRecords, onClose, onActiveChange }
       <style>{`
         .queue-backdrop {
           position: fixed; inset: 0;
-          background: rgba(2,4,8,.78);
-          backdrop-filter: blur(6px);
+          background: rgba(2,4,8,.92);
+          backdrop-filter: blur(8px);
           z-index: 100;  /* above Hud (z-index 7) and dock (z-index 7) */
           display: flex; flex-direction: column;
           /* top padding clears the 56px Hud */
