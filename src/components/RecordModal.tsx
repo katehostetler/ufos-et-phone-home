@@ -73,8 +73,9 @@ export default function RecordModal({ records, onClose }: Props) {
               {idx + 1} / {records.length}
             </span>
           )}
-          <button className="close-btn" onClick={onClose} aria-label="Close">
-            ✕
+          <button className="close-btn" onClick={onClose} aria-label="Back to globe">
+            <span className="close-x">✕</span>
+            <span className="close-label">BACK TO GLOBE</span>
           </button>
         </header>
 
@@ -228,15 +229,26 @@ export default function RecordModal({ records, onClose }: Props) {
         }
         .close-btn {
           margin-left: auto;
-          background: transparent; border: 1px solid rgba(255,255,255,.15);
-          color: rgba(255,255,255,.7);
-          width: 28px; height: 28px;
+          background: rgba(106,255,200,.08);
+          border: 1px solid rgba(106,255,200,.3);
+          color: var(--color-hud);
+          height: 30px;
+          padding: 0 12px;
           border-radius: 2px;
           cursor: pointer;
-          font-size: 14px;
           font-family: var(--font-mono);
+          font-size: 11px;
+          letter-spacing: .15em;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
         }
-        .close-btn:hover { color: var(--color-hud); border-color: var(--color-hud); }
+        .close-btn:hover {
+          background: rgba(106,255,200,.18);
+          border-color: var(--color-hud);
+        }
+        .close-x { font-size: 14px; line-height: 1; }
+        .close-label { display: inline; }
 
         .modal-hero {
           background: #04060b;
@@ -430,6 +442,16 @@ export default function RecordModal({ records, onClose }: Props) {
           .modal-head .counter {
             font-size: 9px;
           }
+          /* Beef up the close button on mobile so users always know how to
+             get back to the globe */
+          .close-btn {
+            height: 36px;
+            padding: 0 14px;
+            background: rgba(106,255,200,.14);
+            border-color: var(--color-hud);
+            font-weight: 600;
+          }
+          .close-x { font-size: 15px; }
           .modal-hero {
             aspect-ratio: 16/9;
             max-height: 45vh;

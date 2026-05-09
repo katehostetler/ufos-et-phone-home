@@ -36,6 +36,9 @@ export default function GlobeApp({ records }: Props) {
     y: number;
   } | null>(null);
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Saved camera position so we can restore the user's view after they close
+  // a modal opened by clicking a pin.
+  const savedPovRef = useRef<{ lat: number; lng: number; altitude: number } | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -205,12 +208,19 @@ export default function GlobeApp({ records }: Props) {
         active[r.mediaType as MediaType],
     );
     if (same.length === 0) return;
+    // Snapshot the user's current view so we can return them here on close.
+    if (globeRef.current) {
+      savedPovRef.current = (globeRef.current as any).pointOfView() ?? null;
+    }
     setModalRecords(same);
-    if (globeRef.current && p.location) {
-      globeRef.current.pointOfView(
-        { lat: p.location.lat, lng: p.location.lng, altitude: 1.7 },
-        900,
-      );
+  }
+
+  function closeModalPreservingView() {
+    setModalRecords(null);
+    // Restore the camera position the user was at before they clicked.
+    if (globeRef.current && savedPovRef.current) {
+      (globeRef.current as any).pointOfView(savedPovRef.current, 700);
+      savedPovRef.current = null;
     }
   }
 
@@ -231,13 +241,8 @@ export default function GlobeApp({ records }: Props) {
       const x = event?.clientX ?? window.innerWidth / 2;
       const y = event?.clientY ?? window.innerHeight / 2;
       setTouchPreview({ rec: p, x, y });
-      // gently fly the globe to the previewed pin
-      if (globeRef.current && p.location) {
-        globeRef.current.pointOfView(
-          { lat: p.location.lat, lng: p.location.lng, altitude: 2.1 },
-          700,
-        );
-      }
+      // Don't fly the globe on preview tap — Kate said it's confusing to lose
+      // your spot on the globe just for a peek. Camera stays put.
       // auto-dismiss after 6 seconds if no second tap
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
       previewTimerRef.current = setTimeout(() => setTouchPreview(null), 6000);
@@ -268,8 +273,9 @@ export default function GlobeApp({ records }: Props) {
 
   return (
     <>
-      {/* filter chips */}
+      {/* filter chips — toggle pin visibility on the globe */}
       <div className="filterbar">
+        <span className="filterbar-label">⏵ FILTER PINS</span>
         {(["vid", "img", "pdf"] as MediaType[]).map((t) => {
           const labels = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
           const counts = {
@@ -282,6 +288,7 @@ export default function GlobeApp({ records }: Props) {
               key={t}
               className={`chip ${t} ${active[t] ? "active" : "off"}`}
               onClick={() => setActive((s) => ({ ...s, [t]: !s[t] }))}
+              title={`Toggle ${labels[t].toLowerCase()} pins on the globe`}
             >
               <span className="swatch"></span>
               {labels[t]} · {counts[t]}
@@ -302,73 +309,76 @@ export default function GlobeApp({ records }: Props) {
           showAtmosphere={true}
           atmosphereColor="#5ab4ff"
           atmosphereAltitude={0.28}
+          /* The pin "head" — a sphere using globe.gl's pointsData. Owns the
+             click + hover behavior. Sits at altitude where the head should be. */
           pointsData={points}
           pointLat={(d: any) => d.location.lat}
           pointLng={(d: any) => d.location.lng}
-          /* float pins visibly above the surface — gives parallax / 3D feel */
-          pointAltitude={(d: any) => (d.location.regional ? 0.045 : 0.035)}
+          pointAltitude={(d: any) => (d.location.regional ? 0.05 : 0.04)}
           pointRadius={(d: any) => {
-            const base = d.location.regional ? 0.85 : 0.7;
-            // Touch devices need a much larger hit area to register reliably.
-            return isTouch ? base * 1.8 : base;
+            const base = d.location.regional ? 1.0 : 0.85;
+            return isTouch ? base * 1.6 : base;
           }}
-          pointResolution={14}
+          pointResolution={20}
           pointColor={(d: any) => COLORS[d.mediaType as MediaType]}
-          /* glowing beam under each pin connecting to the surface */
+          /* Hover tooltip — desktop only. On touch we show our own
+             touch-preview overlay instead, to avoid the doubled-tooltip bug. */
+          pointLabel={(d: any) =>
+            isTouch
+              ? ""
+              : `<div class="pin-tooltip">
+                  <div class="loc">${escapeHtml(d.location.name)}</div>
+                  <div class="ttl">${escapeHtml(truncate(d.title, 60))}</div>
+                  <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}</div>
+                </div>`
+          }
+          onPointClick={onPointClick}
+          /* The pin "body" — a tapered cone connecting the sphere head down
+             to the surface. Pure decoration; no interactivity. */
           customLayerData={points}
           customThreeObject={(d: any) => {
             const color = new THREE.Color(COLORS[d.mediaType as MediaType]);
-            const geo = new THREE.CylinderGeometry(0.18, 0.32, 1, 6, 1, true);
-            const mat = new THREE.MeshBasicMaterial({
+            // tapered cone: narrow tip (radBot) at surface, wider top (radTop)
+            // where the head sphere sits. Height = 1; we scale to altitude.
+            const geo = new THREE.CylinderGeometry(0.55, 0.08, 1, 14, 1, false);
+            const mat = new THREE.MeshPhongMaterial({
               color,
-              transparent: true,
-              opacity: 0.55,
-              depthWrite: false,
+              shininess: 50,
+              specular: new THREE.Color(0x333333),
+              emissive: color.clone().multiplyScalar(0.12),
             });
-            const beam = new THREE.Mesh(geo, mat);
-            // also a small base disc on the surface for grounding
-            const baseGeo = new THREE.CircleGeometry(0.55, 16);
-            const baseMat = new THREE.MeshBasicMaterial({
-              color,
-              transparent: true,
-              opacity: 0.4,
-              depthWrite: false,
-            });
-            const base = new THREE.Mesh(baseGeo, baseMat);
-            base.rotateX(-Math.PI / 2); // lay flat
-            base.position.y = -0.5; // sit at surface end of cylinder
-            beam.add(base);
-            beam.userData = { mediaType: d.mediaType };
-            return beam;
+            return new THREE.Mesh(geo, mat);
           }}
           customThreeObjectUpdate={(obj: any, d: any) => {
             if (!globeRef.current) return;
-            const altitude = d.location.regional ? 0.045 : 0.035;
-            const tip = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, altitude);
-            const surf = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, 0);
-            // place at midpoint between surface and pin tip
+            const altitude = d.location.regional ? 0.05 : 0.04;
+            const tip = (globeRef.current as any).getCoords(
+              d.location.lat,
+              d.location.lng,
+              altitude,
+            );
+            const surf = (globeRef.current as any).getCoords(
+              d.location.lat,
+              d.location.lng,
+              0,
+            );
             obj.position.set(
               (tip.x + surf.x) / 2,
               (tip.y + surf.y) / 2,
               (tip.z + surf.z) / 2,
             );
-            // scale length to match altitude (globe radius ~100 in scene units)
             const length = Math.sqrt(
-              (tip.x - surf.x) ** 2 + (tip.y - surf.y) ** 2 + (tip.z - surf.z) ** 2,
+              (tip.x - surf.x) ** 2 +
+                (tip.y - surf.y) ** 2 +
+                (tip.z - surf.z) ** 2,
             );
-            obj.scale.set(1, length, 1);
-            // align cylinder Y axis along the surface normal (radially outward)
+            // X/Z scale = 1.0 keeps the geometry's radii. Y scales to altitude.
+            // On touch, pump the cone larger so it visually balances the bigger head.
+            const xz = isTouch ? 1.4 : 1.0;
+            obj.scale.set(xz, length, xz);
             obj.lookAt(0, 0, 0);
             obj.rotateX(Math.PI / 2);
           }}
-          pointLabel={(d: any) => `
-            <div class="pin-tooltip">
-              <div class="loc">${escapeHtml(d.location.name)}</div>
-              <div class="ttl">${escapeHtml(truncate(d.title, 60))}</div>
-              <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}</div>
-            </div>
-          `}
-          onPointClick={onPointClick}
           ringsData={rings}
           ringLat={(d: any) => d.location.lat}
           ringLng={(d: any) => d.location.lng}
@@ -400,7 +410,7 @@ export default function GlobeApp({ records }: Props) {
 
       {/* modal */}
       {modalRecords && (
-        <RecordModal records={modalRecords} onClose={() => setModalRecords(null)} />
+        <RecordModal records={modalRecords} onClose={closeModalPreservingView} />
       )}
 
       {/* queue / coverflow browser */}
@@ -561,4 +571,60 @@ function escapeHtml(s: string): string {
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+/**
+ * Build a single 3D location-pin mesh.
+ * - cone body that tapers from a sharp tip (touching surface) up to a wider top
+ * - spherical head sitting on top, slightly larger than the cone
+ * - small white specular highlight on the head for that "shiny" look
+ *
+ * Materials are MeshPhongMaterial so they pick up globe.gl's directional
+ * lighting and look photorealistic instead of flat.
+ *
+ * Local frame: tip at y=0, head centered at y≈3. After we lookAt(0,0,0) +
+ * rotateX(π/2) in the update fn, +Y becomes radially outward, so the tip
+ * lands on the surface and the head floats above.
+ */
+function makePin3D(colorHex: string): THREE.Group {
+  const color = new THREE.Color(colorHex);
+  const group = new THREE.Group();
+
+  // Cone body — thin tip at bottom (y=0), wide top (y=2.2)
+  const bodyGeo = new THREE.CylinderGeometry(0.7, 0.06, 2.2, 18, 1, false);
+  const bodyMat = new THREE.MeshPhongMaterial({
+    color,
+    shininess: 60,
+    specular: new THREE.Color(0x444444),
+    emissive: color.clone().multiplyScalar(0.12),
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.1; // tip at y=0
+  group.add(body);
+
+  // Sphere head sits just above the wide end of the cone
+  const headGeo = new THREE.SphereGeometry(0.85, 22, 22);
+  const headMat = new THREE.MeshPhongMaterial({
+    color: color.clone().offsetHSL(0, 0, 0.05),
+    shininess: 110,
+    specular: new THREE.Color(0x666666),
+    emissive: color.clone().multiplyScalar(0.22),
+  });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 2.85;
+  group.add(head);
+
+  // Specular highlight — small offset white sphere makes the head feel polished
+  const dotGeo = new THREE.SphereGeometry(0.22, 10, 10);
+  const dotMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.55,
+    depthWrite: false,
+  });
+  const dot = new THREE.Mesh(dotGeo, dotMat);
+  dot.position.set(0.32, 3.2, 0.32);
+  group.add(dot);
+
+  return group;
 }
