@@ -147,12 +147,18 @@ body::after {
 .chip.active     { color: var(--color-hud); border-color: rgba(106,255,200,.5); background: rgba(106,255,200,.08); }
 .chip.off        { opacity: .35; }
 
-/* Pin tooltip used by globe.gl. The wrapper div globe.gl injects has class
-   `scene-tooltip` and inherits stacking context from the canvas — force it
-   above everything in the globe stage so hover labels never get occluded. */
-.scene-tooltip {
-  z-index: 30 !important;
+/* Pin tooltip used by globe.gl. The wrapper div globe.gl (kapsule) injects
+   has class `float-tooltip-kap` and lives inside `.scene-container`. Both
+   need explicit z-index + visible overflow so hover labels never get occluded
+   by the WebGL canvas or the surrounding stage. */
+.scene-container {
+  position: relative;
+  z-index: 1;
+}
+.float-tooltip-kap {
+  z-index: 100 !important;
   pointer-events: none !important;
+  position: absolute !important;
 }
 .pin-tooltip {
   background: rgba(0,0,0,.92);
