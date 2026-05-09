@@ -4,7 +4,8 @@
  * Pure data + logic for the floating-UFO easter egg.
  * No DOM / Three.js imports — unit-testable in isolation.
  *
- * Neutral pale colors chosen to avoid the media-type pin palette:
+ * Craft colors are desaturated metallic silver / steel / chrome tones —
+ * "futuristic spacecraft", and well clear of the media-type pin palette:
  *   vid: #ff3b3b  |  img: #5ad7ff  |  pdf: #ffc870
  */
 
@@ -42,62 +43,62 @@ export interface UfoSpec {
 
 /**
  * Curated pool of UFO specs. Saucer-heavy (the more iconic silhouette),
- * with a couple of tic-tacs mixed in. All pale/neutral tones that don't
- * clash with the pin palette (red / cyan-blue / gold).
+ * with a couple of tic-tacs mixed in. All metallic silver / steel / chrome
+ * tones — never green, never anything that clashes with the pin palette.
  */
 export const UFO_POOL: UfoSpec[] = [
   {
     kind: "saucer",
-    color: "#d4c8ff", // pale lavender
-    glowIntensity: 0.7,
+    color: "#cdd6e1", // brushed silver
+    glowIntensity: 0.6,
     latRange: [-45, 45],
     lngRange: [-180, 180],
     altitude: 0.22,
-    lifespan: 16,
+    lifespan: 13,
     spinSpeed: 0.9,
     driftSpeed: 2.8,
   },
   {
     kind: "saucer",
-    color: "#ffe8b0", // pale warm white
+    color: "#e9eef4", // bright chrome white
     glowIntensity: 0.65,
     latRange: [-40, 40],
     lngRange: [-180, 180],
     altitude: 0.25,
-    lifespan: 14,
+    lifespan: 12,
     spinSpeed: 1.2,
     driftSpeed: 3.0,
   },
   {
     kind: "saucer",
-    color: "#b8f0ff", // pale sky
-    glowIntensity: 0.75,
+    color: "#aeb8c4", // gunmetal / titanium
+    glowIntensity: 0.55,
     latRange: [-42, 42],
     lngRange: [-180, 180],
     altitude: 0.23,
-    lifespan: 15,
+    lifespan: 14,
     spinSpeed: 1.0,
     driftSpeed: 3.2,
   },
   {
     kind: "tictac",
-    color: "#f4f0e8", // matte off-white
-    glowIntensity: 0.55,
+    color: "#d6dde6", // pale steel
+    glowIntensity: 0.5,
     latRange: [-35, 35],
     lngRange: [-180, 180],
     altitude: 0.24,
-    lifespan: 13,
+    lifespan: 11,
     spinSpeed: 0.4,
     driftSpeed: 5.5, // tic-tacs move noticeably faster
   },
   {
     kind: "tictac",
-    color: "#e8e8f0", // cool silver-white
+    color: "#bfc8d3", // pewter
     glowIntensity: 0.5,
     latRange: [-30, 30],
     lngRange: [-180, 180],
     altitude: 0.27,
-    lifespan: 12,
+    lifespan: 11,
     spinSpeed: 0.3,
     driftSpeed: 6.0,
   },
