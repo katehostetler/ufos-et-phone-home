@@ -131,9 +131,10 @@ export default function GlobeApp({ records }: Props) {
     controls.addEventListener("end", onEnd);
     globeRef.current.pointOfView({ lat: 28, lng: 50, altitude: 2.4 }, 0);
 
-    // 3D starfield: two layers of points at different distances for depth.
-    // Stars are placed on a sphere far enough out that they always sit
-    // behind the globe, regardless of zoom.
+    // Starfield: layers of points on big spheres around the globe. They render
+    // *before* the globe (renderOrder -1) with depth-testing OFF, so the globe
+    // always paints over them — the stars can never appear "in front of" the
+    // globe no matter how far the camera zooms out or which way it spins.
     const scene = globeRef.current.scene();
     const stars: THREE.Points[] = [];
 
@@ -183,19 +184,24 @@ export default function GlobeApp({ records }: Props) {
         transparent: true,
         opacity,
         depthWrite: false,
+        depthTest: false,
       });
       const points = new THREE.Points(geo, mat);
+      points.renderOrder = -1; // draw before the globe → globe always occludes
+      points.frustumCulled = false;
       scene.add(points);
       stars.push(points);
       return { geo, mat };
     };
 
-    // Globe is rendered at radius ~100 in scene units. Stars sit on a sphere
-    // outside the camera-far-clip-but-close-enough-to-be-visible distance.
+    // Globe is rendered at radius ~100 in scene units. Stars sit on far-out
+    // spheres so they read as a distant backdrop with very little parallax as
+    // the camera orbits. Point `size` is scaled up to compensate for the
+    // distance (sizeAttenuation shrinks far points).
     const layers = [
-      makeStarLayer(700, 380, 1.6, 0.95),  // bright near layer
-      makeStarLayer(1400, 480, 0.9, 0.65), // faint far layer (depth)
-      makeStarLayer(800, 560, 0.55, 0.4),  // distant haze
+      makeStarLayer(700, 1300, 5.0, 0.95),  // bright near layer
+      makeStarLayer(1400, 1800, 3.0, 0.6),  // faint mid layer (depth)
+      makeStarLayer(800, 2400, 2.0, 0.38),  // distant haze
     ];
 
     // Subtly twinkle the night-earth city lights via a fragment-shader patch.
