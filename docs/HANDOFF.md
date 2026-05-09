@@ -1,6 +1,6 @@
 # Handoff — UFOs / ET Phone Home
 
-Pick-up doc after context clear. Last updated 2026-05-08.
+Pick-up doc after context clear. Last updated 2026-05-08 (evening — homepage polish session).
 
 ## What this is
 
@@ -13,12 +13,19 @@ Spy-movie-styled archive of the war.gov 5/8/26 UAP release. 3D rotating globe ho
 
 ## Current state of `main`
 
-Working tree clean, in sync with origin. Last 4 merged feature branches:
+Working tree clean, in sync with origin. The 5/8/26 evening session shipped a big polish pass:
 
-1. `feat/brighter-globe-and-stars` — earth brightness + 3D starfield
-2. `feat/queue-tts-inline-video` — queue/coverflow browser + inline DVIDS video + TTS button + mobile tap targets + gallery cards open modal
-3. `feat/3d-pins-tap-preview` — first version of 3D pins, single-tap-preview/double-tap-open
-4. `feat/proper-pins-and-labels` — proper map-pin shape (cone + sphere head with phong shading), FILTER/GALLERY labels, mobile DECLASSIFIED chip, "BACK TO GLOBE" button, globe view preservation
+1. **Vitest + Testing Library** set up (project's first test framework). 49 tests across 6 files: pushpin factory, smoke, featured.json + resolver, HallOfFameOverlay behavior, ufos pool/spawn manager, TransmissionModal.
+2. **Glossy 3D pushpin markers** — replaces the old cone "column" pins. `src/lib/pushpin.ts` builds a `THREE.Group` with a thin chrome needle + glossy media-coloured bead; positioned via `customLayerData` so three-globe doesn't auto-stretch the bead. Invisible `pointsData` keeps native hover/click. Touch devices get a fatter bead and longer needle.
+3. **City-light twinkle** — `src/lib/globeShimmer.ts` patches the globe material's fragment shader to per-cell modulate only the bright (lit) pixels of the night-earth texture. Lights flicker, dark land/ocean stays still. Driven by a RAF loop on a uTime uniform; cleaned up on unmount; respects `prefers-reduced-motion`.
+4. **Hall of Fame chip + overlay** — `★ HALL OF FAME` chip pinned bottom-left of the globe page; click → cinematic overlay with 10 hand-curated wildest records (`src/data/featured.json` + `src/lib/featured.ts` resolver). `scripts/build-records.mjs` validates the list at the end of every data build (unknown ids or empty hooks fail the build). Card click dispatches `open-record` → `GlobeApp` flies the globe and opens `RecordModal`. New `HallOfFameOverlay.tsx`.
+5. **Floating UFOs easter egg** — `FloatingUfos.tsx` injects 3 (capped) low-poly UFOs (mix of glowing orbs + tiny saucers) into the globe scene with randomized drift / position / lifetime. `src/lib/ufos.ts` owns the pool + spawn manager + 8 cryptic *fictional* transmission fragments. Click a UFO → `TransmissionModal.tsx` (animated rotating-conic ring border + decode shimmer). Reduced-motion respected.
+6. **Glowy purple HUD title** — `UFOS / ET PHONE HOME` is now violet (`#d4b3ff`) with a layered text-shadow glow on desktop AND mobile (was previously hidden on mobile).
+7. **HUD cleanup** — dropped the BROWSE mini-nav from the top bar (duplicated the bottom dock); kept only `ⓘ ABOUT`. Top stamp simplified to `DECLASSIFIED · RELEASE_01` (count lives in the right-side ticker). Desktop `PIN = MEDIA` legend removed. Bottom dock vid/img/pdf chips became icon-only (`▶ ⊡ ▤`); `LOCATION UNKNOWN` chip kept its full text/count.
+8. **Universal back-to-context affordances** — `RecordModal` accepts `closeLabel`; says BACK TO GLOBE on the homepage, BACK TO GALLERY on gallery pages, CLOSE elsewhere. `QueuePanel` close button now reads `✕ BACK TO GLOBE`. `PageLayout` shows a green `← BACK TO GLOBE` button above each gallery page title.
+9. **Mobile gallery polish** — sticky-pinned action bar (so the red `OPEN ON DVIDS →` doesn't float over content); mobile-stamp matched to desktop stamp; touch-aware instruction banner (`PINCH TO ZOOM` instead of `SCROLL TO ZOOM`).
+10. **Better TTS voice** — rewrote voice selection to prefer Google Chrome cloud voices, then Microsoft Online Natural, then Apple Premium/Enhanced/Neural, then named macOS voices. Wait for `voiceschanged` event when initial voices array is empty. Reset rate/pitch from 0.95/0.92 → 1.0/1.0 (the slowdown was making good voices sound worse).
+11. **QueuePanel layout fix** — pinned `.queue` to `grid-template-columns: minmax(0, 1fr)` + min-width:0 cascade so the info pane (with the `OPEN ON DVIDS` button) no longer overflows off-screen on desktop.
 
 ## Architecture quick map
 
@@ -67,16 +74,17 @@ npm run build            # production build → dist/
 
 Cloudflare Pages settings: production branch `main`, build command `npm run build`, output directory `dist`. Auto-deploys on push.
 
-## Backlog (in order I'd tackle them)
+## Backlog
 
-1. **🛸 Floating UFOs + alien transmission modal** — Easter egg. 3-5 hovering UFO sprites in the Three.js scene around the globe. Click → opens a special modal with a "transmission decoded" cryptic blurb + animated UFO border. Spec: see `docs/superpowers/specs/2026-05-08-ufo-archive-design.md` Phase 2.
-2. **Hover tooltip rendering** — Kate reported hover labels still not showing reliably on desktop after the fix. Likely a stacking-context issue with `.float-tooltip-kap` inside `.scene-container` (z-index 1) — needs investigation. The tooltip element exists with z-index 100, just not visible when hovering. Reproduce by hovering a pin on the live site.
-3. **Phase 2 enrichment (deferred from spec):**
+1. **Hover tooltip rendering** — pin hover tooltips still don't show reliably on desktop. `.float-tooltip-kap` z-index issue inside `.scene-container`. (Was already in backlog before this session — not addressed.)
+2. **Even better TTS** — current rewrite prefers Google Chrome cloud voices, but on Safari / mobile the available voices are still mediocre. Real upgrade path is ElevenLabs free tier (10k chars/month) via a Cloudflare Pages Function endpoint — needs an API key in environment, plus a backend route. ~2-hour task.
+3. **Voice picker UI** — let the user choose between detected voices (`speechSynthesis.getVoices()` returns many) instead of always auto-picking. Tiny dropdown next to the LISTEN button.
+4. **Phase 2 enrichment (deferred from original spec):**
    - AI summaries via Claude API (per-record, on top of the gov blurbs)
-   - "Most interesting findings" curated hero on homepage
    - Full-text search across PDF contents (requires actually downloading + OCR)
    - Mirror PDFs to R2 for resilience
    - RSS / newsletter for new release drops
+5. **A11y pass** — verify keyboard nav across every modal; verify all buttons have aria-labels; check focus traps on overlays.
 
 ## Known design decisions / gotchas
 
@@ -91,10 +99,16 @@ Cloudflare Pages settings: production branch `main`, build command `npm run buil
 
 ## Files I might want to read next session
 
-- `src/components/GlobeApp.tsx` — biggest file (~470 lines), owns most of the homepage interactivity
-- `src/components/QueuePanel.tsx` — the in-place media browser
-- `scripts/build-records.mjs` — data pipeline, has all the war.gov / DVIDS scraping logic
-- `docs/superpowers/specs/2026-05-08-ufo-archive-design.md` — original design spec, Phase 2 ideas
+- `src/components/GlobeApp.tsx` — biggest file (~460 lines), owns the globe interactivity, pin geometry hookup, modal owner on the homepage, listens for `open-record` and `open-queue` events
+- `src/components/QueuePanel.tsx` — the in-place coverflow media browser
+- `src/components/HallOfFameOverlay.tsx` — the chip-triggered featured-records overlay
+- `src/components/FloatingUfos.tsx` + `src/lib/ufos.ts` — UFO easter egg + spawn manager + transmissions pool
+- `src/lib/pushpin.ts` + `src/lib/globeShimmer.ts` — pin geometry factory + city-light shader patch
+- `src/data/featured.json` — curated 10-record list with hooks (validated at build time)
+- `scripts/build-records.mjs` — data pipeline + featured.json validation step
+- `docs/superpowers/specs/2026-05-08-homepage-polish-design.md` — spec for this session's work
+- `docs/superpowers/plans/2026-05-08-homepage-polish.md` — implementation plan for this session's work
+- `docs/superpowers/specs/2026-05-08-ufo-archive-design.md` — original archive design spec
 - `docs/DEPLOY.md` — Cloudflare Pages connect/build settings
 
 ## How to resume
