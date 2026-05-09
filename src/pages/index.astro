@@ -48,7 +48,8 @@ const featured = resolveFeatured(featuredRaw as any, all);
       <a href="/no-location" data-queue="noloc" class="chip" title="Records without a location">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
     </footer>
 
-    <div class="banner-instr">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
+    <div class="banner-instr banner-pointer">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
+    <div class="banner-instr banner-touch">DRAG TO ROTATE · PINCH TO ZOOM · TAP PINS</div>
 
     <!-- Mobile-only declassified badge (stamp is hidden in the Hud on mobile) -->
     <span class="mobile-stamp">DECLASSIFIED · RELEASE_01</span>
@@ -170,6 +171,13 @@ const featured = resolveFeatured(featuredRaw as any, all);
       z-index: 6;
       pointer-events: none;
     }
+  }
+
+  /* Show the pointer/touch banner appropriate to the device. */
+  .banner-touch { display: none; }
+  @media (hover: none) and (pointer: coarse) {
+    .banner-pointer { display: none; }
+    .banner-touch { display: inline-flex; }
   }
 
   .banner-instr {
