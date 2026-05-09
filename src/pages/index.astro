@@ -34,6 +34,9 @@ const featured = resolveFeatured(featuredRaw as any, all);
     <!-- ★ HALL OF FAME chip — bottom-left, above the dock -->
     <button type="button" class="chip hof-chip" data-open="hall-of-fame" title="The wildest files in the release"><span class="hof-star">★</span> HALL OF FAME</button>
 
+    <!-- ⓘ ABOUT chip — bottom-right corner (icon-only on mobile) -->
+    <a href="/about" class="chip info-chip" title="About this archive" aria-label="About this archive"><span class="info-glyph">ⓘ</span><span class="info-text"> ABOUT</span></a>
+
     <footer class="dock">
       <a href="/gallery" class="dock-label" title={`Browse the full archive (${all.length} records)`}>
         <span class="dl-icon">▦</span><span class="dl-text">BROWSE<br />GALLERY</span>
@@ -47,7 +50,6 @@ const featured = resolveFeatured(featuredRaw as any, all);
       <a href="/files" data-queue="pdf" class="chip pdf active chip-icon" title={`Browse all ${counts.pdf} documents`} aria-label={`Browse all ${counts.pdf} documents`}>
         <span class="chip-glyph">▤</span>
       </a>
-      <a href="/no-location" data-queue="noloc" class="chip" title="Records without a location">⊕ {counts.unmapped} LOCATION UNKNOWN</a>
     </footer>
 
     <div class="banner-instr banner-pointer">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
