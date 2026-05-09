@@ -1,0 +1,201 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg:        #04060b;
+  --color-hud:       #6affc8;
+  --color-vid:       #ff3b3b;
+  --color-img:       #5ad7ff;
+  --color-pdf:       #ffc870;
+  --color-line:      rgba(106,255,200,0.18);
+  --color-line-dim:  rgba(106,255,200,0.08);
+  --font-display:    "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:       "JetBrains Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: #e8edf3;
+  font-family: var(--font-mono);
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+/* faint global glow + starfield */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 60%, rgba(40,80,200,.16) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 15%, rgba(120,40,180,.10) 0%, transparent 55%);
+  pointer-events: none;
+  z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, #fff8, transparent),
+    radial-gradient(1px 1px at 28% 64%, #fff5, transparent),
+    radial-gradient(1px 1px at 62% 32%, #fffa, transparent),
+    radial-gradient(1px 1px at 81% 78%, #fff7, transparent),
+    radial-gradient(1px 1px at 44% 12%, #fff5, transparent),
+    radial-gradient(1px 1px at 91% 44%, #fff8, transparent),
+    radial-gradient(1px 1px at 18% 88%, #fff6, transparent),
+    radial-gradient(1px 1px at 55% 92%, #fff5, transparent),
+    radial-gradient(1px 1px at 35% 50%, #fff6, transparent),
+    radial-gradient(1px 1px at 75% 60%, #fff7, transparent),
+    radial-gradient(1px 1px at 5% 35%, #fff7, transparent),
+    radial-gradient(1px 1px at 95% 70%, #fff5, transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* scan lines overlay */
+.scanlines {
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0 2px,
+    rgba(106,255,200,.03) 2px 3px
+  );
+  pointer-events: none;
+  z-index: 8;
+  mix-blend-mode: screen;
+}
+
+/* HUD corner brackets */
+.corner {
+  position: fixed;
+  width: 26px; height: 26px;
+  border: 1px solid var(--color-hud);
+  z-index: 10;
+  pointer-events: none;
+  opacity: .55;
+}
+.corner.tl { top: 14px; left: 14px;  border-right: none; border-bottom: none; }
+.corner.tr { top: 14px; right: 14px; border-left: none;  border-bottom: none; }
+.corner.bl { bottom: 14px; left: 14px;  border-right: none; border-top: none; }
+.corner.br { bottom: 14px; right: 14px; border-left: none;  border-top: none; }
+
+/* utility classes referenced from components */
+.font-display { font-family: var(--font-display); }
+.font-mono    { font-family: var(--font-mono); }
+
+/* HUD chip (filter pill) */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #cdd3dc;
+  border-radius: 2px;
+  padding: 5px 12px;
+  font-size: 10px;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  user-select: none;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.chip:hover { border-color: var(--color-hud); color: var(--color-hud); }
+.chip .swatch { width: 6px; height: 6px; border-radius: 50%; }
+.chip.vid .swatch { background: var(--color-vid); box-shadow: 0 0 6px var(--color-vid); }
+.chip.img .swatch { background: var(--color-img); box-shadow: 0 0 6px var(--color-img); }
+.chip.pdf .swatch { background: var(--color-pdf); box-shadow: 0 0 6px var(--color-pdf); }
+
+.chip.active.vid { color: var(--color-vid); border-color: rgba(255,59,59,.5);  background: rgba(255,59,59,.08); }
+.chip.active.img { color: var(--color-img); border-color: rgba(90,215,255,.5); background: rgba(90,215,255,.08); }
+.chip.active.pdf { color: var(--color-pdf); border-color: rgba(255,200,112,.5); background: rgba(255,200,112,.08); }
+.chip.active     { color: var(--color-hud); border-color: rgba(106,255,200,.5); background: rgba(106,255,200,.08); }
+.chip.off        { opacity: .35; }
+
+/* Pin tooltip used by globe.gl */
+.pin-tooltip {
+  background: rgba(0,0,0,.85);
+  border: 1px solid var(--color-hud);
+  border-radius: 2px;
+  padding: 6px 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #e8edf3;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 14px rgba(106,255,200,.25);
+  pointer-events: none;
+}
+.pin-tooltip .loc {
+  color: var(--color-hud);
+  font-size: 9px;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.pin-tooltip .ttl { font-weight: 600; }
+.pin-tooltip .meta { font-size: 9px; opacity: .55; margin-top: 3px; }
+
+/* blink animation for live indicators */
+@keyframes hud-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+.blink-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--color-vid);
+  margin-right: 8px;
+  animation: hud-blink 1.2s ease-in-out infinite;
+  box-shadow: 0 0 8px var(--color-vid);
+}
+
+/* slide-in for modal */
+@keyframes hud-slidein {
+  from { opacity: 0; transform: translateY(8px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-enter { animation: hud-slidein .25s ease-out; }
+
+/* ============================================================ */
+/* TABLET (≤1024px)                                              */
+/* ============================================================ */
+@media (max-width: 1024px) {
+  .corner { width: 20px; height: 20px; }
+  .corner.tl { top: 10px; left: 10px; }
+  .corner.tr { top: 10px; right: 10px; }
+  .corner.bl { bottom: 10px; left: 10px; }
+  .corner.br { bottom: 10px; right: 10px; }
+
+  .chip {
+    padding: 5px 10px;
+    font-size: 9px;
+    letter-spacing: .12em;
+  }
+}
+
+/* ============================================================ */
+/* MOBILE (≤768px)                                               */
+/* ============================================================ */
+@media (max-width: 767px) {
+  .corner { width: 16px; height: 16px; }
+  .corner.tl { top: 8px; left: 8px; }
+  .corner.tr { top: 8px; right: 8px; }
+  .corner.bl { bottom: 8px; left: 8px; }
+  .corner.br { bottom: 8px; right: 8px; }
+
+  .chip {
+    padding: 5px 9px;
+    font-size: 9px;
+    letter-spacing: .1em;
+    gap: 6px;
+  }
+  .chip .swatch { width: 5px; height: 5px; }
+
+  .pin-tooltip {
+    font-size: 10px;
+    padding: 5px 8px;
+    max-width: 220px;
+  }
+}

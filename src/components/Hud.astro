@@ -1,0 +1,143 @@
+---
+interface Props {
+  recordCount: number;
+}
+const { recordCount } = Astro.props;
+---
+
+<header class="top">
+  <a href="/" class="brand">
+    <span class="logo">UFOS</span>
+    <span class="logo-sub">/ ET PHONE HOME</span>
+  </a>
+  <span class="clock" id="clock">UTC --:--:--</span>
+  <nav class="primary-nav">
+    <a href="/videos">VIDEOS</a>
+    <a href="/photos">PHOTOS</a>
+    <a href="/files">FILES</a>
+    <a href="/no-location">NO-LOC</a>
+    <a href="/about">ABOUT</a>
+  </nav>
+  <span class="stamp">DECLASSIFIED · RELEASE_01 · {recordCount} RECORDS</span>
+</header>
+
+<style>
+  .top {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 28px;
+    background: linear-gradient(180deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 100%);
+    border-bottom: 1px solid var(--color-line);
+    gap: 18px;
+    backdrop-filter: blur(4px);
+    z-index: 7;
+  }
+  .brand {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    text-decoration: none;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 16px;
+    letter-spacing: .22em;
+    color: var(--color-hud);
+    text-shadow: 0 0 12px rgba(106,255,200,.5);
+  }
+  .logo-sub {
+    font-size: 11px;
+    letter-spacing: .3em;
+    opacity: .55;
+    color: #e8edf3;
+  }
+  .clock {
+    font-size: 10px;
+    letter-spacing: .15em;
+    opacity: .65;
+    margin-left: 8px;
+    font-variant-numeric: tabular-nums;
+    color: #cdd3dc;
+  }
+  .primary-nav {
+    display: flex;
+    gap: 16px;
+    margin-left: auto;
+  }
+  .primary-nav a {
+    font-size: 10px;
+    letter-spacing: .2em;
+    color: rgba(232,237,243,.6);
+    text-decoration: none;
+    transition: color .15s;
+  }
+  .primary-nav a:hover { color: var(--color-hud); }
+  .stamp {
+    font-size: 9px;
+    letter-spacing: .2em;
+    color: var(--color-vid);
+    border: 1px solid rgba(255,59,59,.55);
+    padding: 4px 10px;
+    border-radius: 2px;
+    background: rgba(255,59,59,.06);
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  /* Tablet */
+  @media (max-width: 1024px) {
+    .top {
+      gap: 12px;
+      padding: 0 20px;
+    }
+    .logo-sub { display: none; }
+    .clock { margin-left: 0; }
+    .primary-nav { gap: 12px; }
+    .stamp { font-size: 8px; padding: 3px 7px; letter-spacing: .15em; }
+  }
+
+  /* Mobile */
+  @media (max-width: 767px) {
+    .top {
+      height: 48px;
+      padding: 0 12px 0 30px;
+      gap: 8px;
+    }
+    .logo { font-size: 14px; letter-spacing: .18em; }
+    .logo-sub { display: none; }
+    .clock { display: none; }
+    .stamp { display: none; }
+    .primary-nav {
+      gap: 10px;
+      margin-left: auto;
+    }
+    .primary-nav a {
+      font-size: 9px;
+      letter-spacing: .15em;
+    }
+  }
+
+  /* Very small mobile — keep core nav links visible */
+  @media (max-width: 480px) {
+    .top {
+      padding: 0 10px 0 28px;
+      gap: 6px;
+    }
+    .primary-nav { gap: 7px; }
+    .primary-nav a { font-size: 8.5px; letter-spacing: .1em; }
+  }
+</style>
+
+<script>
+  function tick() {
+    const el = document.getElementById('clock');
+    if (!el) return;
+    el.textContent = `UTC ${new Date().toISOString().slice(11, 19)}`;
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>

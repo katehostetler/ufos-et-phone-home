@@ -1,0 +1,86 @@
+---
+interface Props {
+  vidCount: number;
+  imgCount: number;
+  pdfCount: number;
+}
+const { vidCount, imgCount, pdfCount } = Astro.props;
+---
+
+<aside class="legend">
+  <span class="label">PIN = MEDIA</span>
+  <div class="row"><span class="swatch vid"></span> Video footage <span class="count">{vidCount}</span></div>
+  <div class="row"><span class="swatch img"></span> Photo evidence <span class="count">{imgCount}</span></div>
+  <div class="row"><span class="swatch pdf"></span> Document only <span class="count">{pdfCount}</span></div>
+  <div class="note">Halo = regional<br/>(Middle East, etc.)</div>
+</aside>
+
+<style>
+  .legend {
+    position: fixed;
+    left: 28px;
+    top: 110px;
+    background: rgba(8,12,20,.75);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--color-line);
+    border-radius: 2px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    z-index: 6;
+    min-width: 180px;
+    font-size: 11px;
+  }
+  .label {
+    font-size: 8px;
+    letter-spacing: .25em;
+    text-transform: uppercase;
+    color: var(--color-hud);
+    margin-bottom: 4px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .swatch {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .swatch.vid { background: var(--color-vid); box-shadow: 0 0 10px var(--color-vid); }
+  .swatch.img { background: var(--color-img); box-shadow: 0 0 10px var(--color-img); }
+  .swatch.pdf { background: var(--color-pdf); box-shadow: 0 0 8px var(--color-pdf); }
+  .count {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    opacity: .65;
+    font-weight: 600;
+  }
+  .note {
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid var(--color-line);
+    font-size: 9px;
+    opacity: .55;
+    letter-spacing: .05em;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 1024px) {
+    .legend {
+      left: 16px;
+      top: 92px;
+      min-width: 150px;
+      padding: 9px 11px;
+      font-size: 10px;
+      gap: 7px;
+    }
+    .legend .note { display: none; }
+  }
+
+  /* Hide entirely on mobile — would overlap the globe */
+  @media (max-width: 767px) {
+    .legend { display: none; }
+  }
+</style>

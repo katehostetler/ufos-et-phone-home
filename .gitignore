@@ -1,0 +1,35 @@
+node_modules/
+dist/
+.astro/
+.vercel/
+.output/
+.cache/
+
+# brainstorming artifacts (visual companion mockups)
+.superpowers/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+
+# build-time scratch
+.wargov-cookies.txt
+
+# playwright + ad-hoc test screenshots
+.playwright-mcp/
+*.png
+!public/**/*.png
+!src/**/*.png
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp

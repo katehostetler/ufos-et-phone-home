@@ -1,0 +1,178 @@
+---
+import Base from "@/layouts/Base.astro";
+import Hud from "@/components/Hud.astro";
+import Legend from "@/components/Legend.astro";
+import Ticker from "@/components/Ticker.astro";
+import GlobeApp from "@/components/GlobeApp";
+import records from "@/data/records.json";
+import type { Record } from "@/types/record";
+
+const all = records as Record[];
+const counts = {
+  vid: all.filter((r) => r.mediaType === "vid").length,
+  img: all.filter((r) => r.mediaType === "img").length,
+  pdf: all.filter((r) => r.mediaType === "pdf").length,
+  unmapped: all.filter((r) => !r.hasLocation).length,
+};
+---
+
+<Base>
+  <Hud recordCount={all.length} />
+
+  <main class="globe-page">
+    <Legend vidCount={counts.vid} imgCount={counts.img} pdfCount={counts.pdf} />
+    <Ticker total={all.length} />
+
+    <GlobeApp client:only="react" records={all} />
+
+    <footer class="dock">
+      <a href="/videos" class="chip vid active">
+        <span class="swatch"></span>{counts.vid} VIDEOS
+      </a>
+      <a href="/photos" class="chip img active">
+        <span class="swatch"></span>{counts.img} PHOTOS
+      </a>
+      <a href="/files" class="chip pdf active">
+        <span class="swatch"></span>{counts.pdf} FILES
+      </a>
+      <a href="/no-location" class="chip">⊕ {counts.unmapped} NO-LOC</a>
+    </footer>
+
+    <div class="banner-instr">DRAG TO ROTATE · SCROLL TO ZOOM · CLICK PINS</div>
+  </main>
+</Base>
+
+<style>
+  .globe-page {
+    position: fixed;
+    top: 56px; left: 0; right: 0; bottom: 56px;
+  }
+
+  /* the filterbar lives inside the React island and floats over the globe */
+  :global(.filterbar) {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 6;
+    background: rgba(0,0,0,.45);
+    backdrop-filter: blur(6px);
+    padding: 6px 8px;
+    border: 1px solid var(--color-line);
+    border-radius: 2px;
+  }
+
+  :global(.globe-stage) {
+    position: absolute; inset: 0;
+    z-index: 1;
+  }
+
+  /* dock at bottom */
+  .dock {
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    background: rgba(0,0,0,.5);
+    border-top: 1px solid var(--color-line);
+    backdrop-filter: blur(8px);
+    z-index: 7;
+  }
+  .dock .chip { text-decoration: none; padding: 7px 16px; }
+
+  .banner-instr {
+    position: absolute;
+    bottom: 76px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(8,12,20,.8);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--color-line);
+    padding: 7px 14px;
+    font-size: 10px;
+    letter-spacing: .15em;
+    color: rgba(106,255,200,.85);
+    z-index: 6;
+    border-radius: 2px;
+    text-transform: uppercase;
+    pointer-events: none;
+    animation: hud-fade 8s 5s forwards;
+  }
+  @keyframes hud-fade {
+    to { opacity: 0; }
+  }
+
+  /* ---------- TABLET ---------- */
+  @media (max-width: 1024px) {
+    :global(.filterbar) {
+      top: 64px;
+      gap: 6px;
+      padding: 5px 6px;
+    }
+    .dock { gap: 8px; }
+    .dock .chip { padding: 6px 12px; }
+    .banner-instr {
+      bottom: 70px;
+      font-size: 9px;
+      padding: 6px 12px;
+    }
+  }
+
+  /* ---------- MOBILE ---------- */
+  @media (max-width: 767px) {
+    .globe-page {
+      top: 48px;
+      bottom: 52px;
+    }
+
+    /* Filterbar — sits just below the header, full width scrollable */
+    :global(.filterbar) {
+      top: 56px;
+      left: 8px;
+      right: 8px;
+      transform: none;
+      justify-content: flex-start;
+      gap: 6px;
+      padding: 5px 6px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      white-space: nowrap;
+    }
+    :global(.filterbar)::-webkit-scrollbar { display: none; }
+    :global(.filterbar) .chip { flex: 0 0 auto; }
+
+    /* Dock — horizontal scroll if it overflows */
+    .dock {
+      height: 52px;
+      gap: 7px;
+      justify-content: flex-start;
+      padding: 0 10px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      white-space: nowrap;
+    }
+    .dock::-webkit-scrollbar { display: none; }
+    .dock .chip {
+      flex: 0 0 auto;
+      padding: 6px 11px;
+      font-size: 9px;
+    }
+
+    .banner-instr {
+      bottom: 64px;
+      font-size: 8.5px;
+      padding: 5px 10px;
+      letter-spacing: .12em;
+      white-space: nowrap;
+    }
+  }
+</style>
