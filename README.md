@@ -8,11 +8,11 @@ Live at **[et-phone-home.pages.dev](https://et-phone-home.pages.dev)**.
 
 ## What is this
 
-In May 2026 the U.S. Department of War (yes, that's what it's called now) dropped a folder of 161 declassified UFO/UAP records onto `war.gov` — a CSV manifest, a pile of PDFs, some Navy infrared footage, a handful of Apollo-era photos, and a stack of FBI Cold War files that mostly say "we don't know either."
+In May 2026 the U.S. Department of War dropped a folder of 161 declassified UFO/UAP records onto `war.gov` — a CSV manifest, a pile of PDFs, some Navy infrared footage, a handful of Apollo-era photos, and a stack of FBI Cold War files that mostly say "we don't know either." Decades of fighter pilots, ship crews, and Apollo astronauts going *"...are you seeing this too?"* into a hot mic — orbs that launch other orbs, a "super-hot" sphere that outran the helicopter sent to chase it, an astronaut's margin note in someone's actual handwriting titled *"UFO Sighting by Borman"* — and the official takeaway is still, essentially, a polite shrug. Make of that what you will. We did.
 
-The government's presentation was a table.
+I wanted to see a more visual version of all this — *okay, but where are the sightings?* — so I built one.
 
-This is the version where it's a rotating 3D Earth. Pins are colour-coded by file type (red = video, cyan = photo, gold = document). Click a pin — the camera flies in, a panel slides out, you read the report, you decide for yourself. There's a `★ HALL OF FAME` chip for the ten genuinely unhinged ones (orbs launching other orbs; a "super-hot" orb that outran the helicopter chasing it; Borman radioing Houston about a "bogey" with handwritten margin notes literally titled *"UFO Sighting by Borman"*). The Apollo records live on an actual little Moon orbiting the Earth, because putting a pin for a lunar photo in the middle of the Atlantic was, frankly, embarrassing.
+It's a rotating 3D Earth. Pins are colour-coded by file type (red = video, cyan = photo, gold = document). Click a pin — the camera flies in, a panel slides out, you read the report, you decide for yourself. There's a `★ HALL OF FAME` chip for the ten genuinely unhinged ones — Mexico's Congress hearing testimony about "two alleged alien corpses"; an FBI Lab sketch of a bronze ellipsoid "materializing out of a bright light"; a 747 crew at 41,000 feet photographing something doing corkscrews and 90-degree turns. The Apollo records live on an actual little Moon orbiting the Earth, because putting a pin for a lunar photo in the middle of the Atlantic was, frankly, embarrassing.
 
 And yes, occasionally a small silver flying saucer drifts past. If you put your cursor near it, it leaves. We don't make the rules.
 
