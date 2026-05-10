@@ -34,6 +34,10 @@ const TYPE_PRIORITY: Record<MediaType, number> = { pdf: 3, img: 2, vid: 1 };
 const PIN_HIGHLIGHT = 0xffffff;
 const PIN_HIGHLIGHT_EMISSIVE = 0x9aa0aa;
 
+/** A "bubble map" scale for a pin: the more records share its location, the
+ *  bigger it draws (sqrt growth so a 25-record spot is ~3× a lone one, not 5×). */
+const pinSizeScale = (count: number) => Math.min(1 + 0.4 * Math.sqrt(Math.max(0, count - 1)), 3.4);
+
 type QueueType = MediaType | "noloc";
 
 interface Props {
@@ -105,27 +109,23 @@ export default function GlobeApp({ records }: Props) {
     return () => window.removeEventListener("open-record", onOpenRecord);
   }, [records]);
 
-  // Highlight (white beacon + grown) the pushpin the PinRail / queue is currently
+  // Highlight (white beacon, grown) the pin the PinRail / queue is currently
   // flying you to, and restore the previously-highlighted one — so when several
   // pins are nearby you can tell which one it just moved you to. Pass null to
-  // clear (e.g. when the rail closes). Pins are keyed by record id when a
-  // location is scattered (regional), else by location name; we try both.
+  // clear (e.g. when the rail closes). Pins are keyed by location name and have
+  // a count-based `userData.baseScale` we restore them to.
   const highlightPin = useCallback((rec: Record | null) => {
     const restore = (key: string) => {
       const m = pinMeshesRef.current.get(key);
       if (!m) return;
-      m.scale.setScalar(1);
+      m.scale.setScalar(m.userData?.baseScale ?? 1);
       const bead = m.userData?.bead;
       if (bead) {
         bead.material.color.copy(m.userData.defaultColor);
         bead.material.emissive.copy(m.userData.defaultEmissive);
       }
     };
-    const key = rec
-      ? pinMeshesRef.current.has(rec.id)
-        ? rec.id
-        : rec.location?.name ?? null
-      : null;
+    const key = rec?.location?.name ?? null;
     const prev = railHighlightedIdRef.current;
     if (prev === key) return;
     if (prev) restore(prev);
@@ -133,7 +133,7 @@ export default function GlobeApp({ records }: Props) {
     if (key) {
       const m = pinMeshesRef.current.get(key);
       if (m) {
-        m.scale.setScalar(1.7);
+        m.scale.setScalar((m.userData?.baseScale ?? 1) * 1.7);
         const bead = m.userData?.bead;
         if (bead) {
           bead.material.color.setHex(PIN_HIGHLIGHT);
@@ -321,19 +321,14 @@ export default function GlobeApp({ records }: Props) {
     [records],
   );
 
-  // Globe pins.
-  //  - A *precise* location (one lat/lng — "Mexico City", "Greece", …) gets ONE
-  //    pin per location; all records sharing it are stacked there anyway, so we
-  //    collapse them to a single pin coloured by the dominant media type (ties:
-  //    document > photo > video) — clicking it still pulls up every record there.
-  //  - A *regional* location ("Western United States", "Arabian Gulf", …) is an
-  //    area, not a point — so we scatter its records as small individual pins
-  //    over a sunflower disk around that area, each in its own colour. (Small
-  //    pins, area distribution — so it reads as "markers all over the area", not
-  //    a giant drawn ring.)
-  // Each entry carries `_pinKey` (record id for scattered pins, location name
-  // for collapsed ones), `_pinLat/_pinLng` (the on-globe spot), `_pinType` (its
-  // colour), `_count` (records at that location), and `_ring`/`_ringRadius`.
+  // Globe pins — ONE pin per location (a "bubble map": the more records share a
+  // location, the bigger that pin's bead AND the wider its pulse ring — see
+  // `_count` → `pinSizeScale()` in `customThreeObject` and `_ringRadius` below).
+  // Scattering co-located records over an area was a worse idea — the geocoder
+  // only knows the place name (e.g. "Western United States"), not 25 distinct
+  // coords, so spreading them out was just inventing data. The pin is coloured
+  // by the dominant media type (ties: document > photo > video). Clicking it
+  // still pulls up *every* record at that location.
   const points = useMemo(() => {
     const byLoc = new Map<string, Record[]>();
     for (const r of records) {
@@ -342,9 +337,7 @@ export default function GlobeApp({ records }: Props) {
       if (arr) arr.push(r);
       else byLoc.set(r.location.name, [r]);
     }
-    const GOLDEN = Math.PI * (3 - Math.sqrt(5));
     type PinEntry = Record & {
-      _pinKey: string;
       _pinLat: number;
       _pinLng: number;
       _pinType: MediaType;
@@ -356,44 +349,22 @@ export default function GlobeApp({ records }: Props) {
     for (const recs of byLoc.values()) {
       const loc = recs[0].location!;
       const n = recs.length;
-      if (loc.regional && n > 1) {
-        // scatter — small pins spread over an area-disk around the region point
-        const R = Math.min(2 + Math.sqrt(n), 7); // degrees of arc
-        const lngScale = 1 / Math.max(0.25, Math.cos((loc.lat * Math.PI) / 180));
-        recs.forEach((r, i) => {
-          const rad = R * Math.sqrt((i + 0.5) / n);
-          const ang = i * GOLDEN + 0.7;
-          out.push({
-            ...r,
-            _pinKey: r.id,
-            _pinLat: loc.lat + rad * Math.sin(ang),
-            _pinLng: loc.lng + rad * Math.cos(ang) * lngScale,
-            _pinType: r.mediaType,
-            _count: n,
-            _ring: r.mediaType === "vid", // individual video pins still pulse (small)
-            _ringRadius: 2.2,
-          });
-        });
-      } else {
-        // collapse to one pin coloured by the dominant type
-        const counts: Record<MediaType, number> = { vid: 0, img: 0, pdf: 0 };
-        for (const r of recs) counts[r.mediaType]++;
-        let best: MediaType = "pdf";
-        for (const t of ["vid", "img", "pdf"] as MediaType[]) {
-          if (counts[t] > counts[best] || (counts[t] === counts[best] && TYPE_PRIORITY[t] > TYPE_PRIORITY[best])) best = t;
-        }
-        const rep = recs.find((r) => r.mediaType === best) ?? recs[0];
-        out.push({
-          ...rep,
-          _pinKey: loc.name,
-          _pinLat: loc.lat,
-          _pinLng: loc.lng,
-          _pinType: best,
-          _count: n,
-          _ring: counts.vid > 0 || n >= 3,
-          _ringRadius: Math.min(2 + n * 0.45, 7.5),
-        });
+      const counts: Record<MediaType, number> = { vid: 0, img: 0, pdf: 0 };
+      for (const r of recs) counts[r.mediaType]++;
+      let best: MediaType = "pdf";
+      for (const t of ["vid", "img", "pdf"] as MediaType[]) {
+        if (counts[t] > counts[best] || (counts[t] === counts[best] && TYPE_PRIORITY[t] > TYPE_PRIORITY[best])) best = t;
       }
+      const rep = recs.find((r) => r.mediaType === best) ?? recs[0];
+      out.push({
+        ...rep,
+        _pinLat: loc.lat,
+        _pinLng: loc.lng,
+        _pinType: best,
+        _count: n,
+        _ring: true,
+        _ringRadius: Math.min(2 + (n - 1) * 0.5, 7.5),
+      });
     }
     return out;
   }, [records]);
@@ -472,12 +443,17 @@ export default function GlobeApp({ records }: Props) {
   // stable; only `isTouch` actually affects them.
   const pointLat = useCallback((d: any) => d._pinLat ?? d.location.lat, []);
   const pointLng = useCallback((d: any) => d._pinLng ?? d.location.lng, []);
-  const pointAltitude = useCallback(() => pushpinAltitude({ touch: isTouch }), [isTouch]);
+  // The hit-target (and the visible pin) grow with the location's record count —
+  // keep the invisible hit sphere parked where the (scaled) bead actually is.
+  const pointAltitude = useCallback(
+    (d: any) => pushpinAltitude({ touch: isTouch }) * pinSizeScale(d._count ?? 1),
+    [isTouch],
+  );
   const pointRadius = useCallback(
-    // Invisible (transparent) hit-volume — much bigger than the little bead, so
-    // you don't need pixel-perfect aim. Extra fat on touch (a finger covers a
-    // lot of screen).
-    () => PUSHPIN.beadRadius * (isTouch ? 9 : 3.5),
+    // Invisible (transparent) hit-volume — much bigger than the bead, so you
+    // don't need pixel-perfect aim. Extra fat on touch (a finger covers a lot
+    // of screen), and scaled with the pin so big bubbles get big hit areas.
+    (d: any) => PUSHPIN.beadRadius * (isTouch ? 9 : 3.5) * pinSizeScale(d._count ?? 1),
     [isTouch],
   );
   const pointLabel = useCallback(
@@ -502,7 +478,10 @@ export default function GlobeApp({ records }: Props) {
   const customThreeObject = useCallback(
     (d: any) => {
       const m = makePushpin({ color: COLORS[(d._pinType ?? d.mediaType) as MediaType], touch: isTouch });
-      pinMeshesRef.current.set(d._pinKey ?? d.location.name, m);
+      const s = pinSizeScale(d._count ?? 1);
+      m.scale.setScalar(s);
+      m.userData.baseScale = s;
+      pinMeshesRef.current.set(d.location.name, m);
       return m;
     },
     [isTouch],
