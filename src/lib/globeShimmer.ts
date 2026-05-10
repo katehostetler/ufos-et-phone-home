@@ -70,8 +70,11 @@ export function applyCityLightShimmer(
   let rafId: number | null = null;
   const started = performance.now();
   const loop = (now: number) => {
-    uTime.value = ((now - started) / 1000) * rate;
     rafId = requestAnimationFrame(loop);
+    // Don't advance the twinkle (or even touch the uniform) while the tab is
+    // hidden — nothing's painting anyway.
+    if (document.hidden) return;
+    uTime.value = ((now - started) / 1000) * rate;
   };
   rafId = requestAnimationFrame(loop);
 

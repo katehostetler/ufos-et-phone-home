@@ -1,6 +1,6 @@
 # Handoff — UFOs / ET Phone Home
 
-Pick-up doc after context clear. Last updated 2026-05-09 (long polish/iteration session).
+Pick-up doc after context clear. Last updated 2026-05-09 (long polish/iteration session; + a perf pass on the globe).
 
 ## What this is
 
@@ -11,6 +11,14 @@ Spy-movie-styled archive of the war.gov 5/8/26 UAP release. 3D rotating globe ho
 - **Stack:** Astro 6 + React 19 + Tailwind 4 + react-globe.gl (Three.js) + Vitest. Pages Functions for `/api/tts`.
 - **Source data:** `data/uap-csv.csv` cached from war.gov; `scripts/build-records.mjs` geocodes + scrapes thumbnails/MP4s + validates `featured.json`. Build deps: `node scripts/build-records.mjs && astro build`.
 - **Working notes from this session:** Kate runs this fast/continuous-deploy; she gives a stream of small UI tweaks, tests on her iPhone against prod (not localhost — localhost from her phone never works; the LAN dev URL `npm run dev -- --host` does). She wants UI things eyeball-verified, not just diff-checked. The HUD palette is green-cyan; "ET PHONE HOME" + Hall of Fame are purple (`--color-hof: #d4b3ff`); UFOs are dark silver.
+
+## 2026-05-09 — perf pass (globe FPS + load; user reported it ran slow)
+
+- **Pixel-ratio cap** — `GlobeApp.tsx`, right after `const renderer = (globeRef.current as any).renderer?.()`: `renderer.setPixelRatio(Math.min(window.devicePixelRatio||1, 1.5))`. Biggest FPS win on Retina/4K (was rendering DPR² pixels). If the globe ever looks soft to someone, that's the knob (1.5 → 2).
+- **`document.hidden` guards on every RAF** — `globeShimmer.ts` loop, `FloatingUfos.tsx` `frame()`, `LunarMoon.tsx` `frame()` all early-return when the tab is hidden (dt timers rebased on return so no jump). Plus `GlobeApp.tsx` adds a `visibilitychange` listener that flips `controls.autoRotate` off while hidden and restores it.
+- **Three.js code-split** — `astro.config.mjs` `vite.build.rollupOptions.output.manualChunks` → `three`/`three-globe`/`react-globe.gl`/`kapsule`/`d3-*`/`topojson-*`/`@tweenjs` go in a `three-globe-[hash].js` chunk. `GlobeApp` chunk: **1.85 MB → 45 KB** + a separate ~1.81 MB Three chunk (module-preloaded on the homepage only). Gallery pages stay three-free (verified in `dist/`).
+- **Misc cheap trims** — globe pins `pointResolution` `12 → 6` (invisible hit cylinders); starfield `~3300 → ~2200` points; `prefetch:{prefetchAll:true,defaultStrategy:'hover'}` + `compressHTML:true` in `astro.config.mjs`.
+- **Found, not done:** `bumpImageUrl` on `<Globe>` still points at `https://unpkg.com/three-globe@2.27.2/example/img/earth-topology.png` — a ~200 KB cross-origin PNG fetched on the heaviest page. Worth vendoring to `public/textures/earth-topology.png` (couldn't `curl` it from this sandboxed env) or dropping (relief is subtle on the night texture). It's a one-time load, not a per-frame cost, so it wasn't blocking the FPS complaint. Also: with `prefers-reduced-motion`, UFOs are static but the RAF still repositions them each frame (`getCoords`+`lookAt`+`rotateX` ×≤4) — negligible, left alone to keep the diff minimal (spawn-manager logic is owned by another dev).
 
 ## 2026-05-09 — even later (globe look, starfield, UFOs ≥2, HUD polish)
 

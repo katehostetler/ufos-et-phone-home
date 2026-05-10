@@ -214,6 +214,12 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
       function frame(now: number) {
         rafRef.current = requestAnimationFrame(frame);
         if (!globeRef.current) return;
+        // Tab hidden → skip the orbit/animation work; lastNow is rebased so we
+        // don't get a dt spike when the tab comes back.
+        if (document.hidden) {
+          lastNow = now;
+          return;
+        }
         const t = (now - t0) / 1000;
         const dt = Math.min((now - lastNow) / 1000, 0.1);
         lastNow = now;

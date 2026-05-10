@@ -234,6 +234,12 @@ export default function FloatingUfos({ globeRef }: FloatingUfosProps) {
 
       function frame(now: number) {
         rafRef.current = requestAnimationFrame(frame);
+        // Tab hidden → don't move/raycast anything; keep lastFrameTime current
+        // so we don't get one giant dt jump on return.
+        if (document.hidden) {
+          lastFrameTime = now;
+          return;
+        }
         const dtSec = Math.min((now - lastFrameTime) / 1000, 0.1);
         lastFrameTime = now;
         const globe = globeRef.current;

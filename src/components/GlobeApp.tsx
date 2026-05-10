@@ -176,6 +176,21 @@ export default function GlobeApp({ records }: Props) {
     };
     controls.addEventListener("start", onStart);
     controls.addEventListener("end", onEnd);
+
+    // Don't burn GPU spinning the globe when the tab is hidden. (The globe.gl
+    // RAF still runs, but with autoRotate off + nothing else moving the scene
+    // it costs almost nothing per frame.) Restore on return.
+    let wasAutoRotating = true;
+    const onVisibility = () => {
+      if (document.hidden) {
+        wasAutoRotating = controls.autoRotate;
+        controls.autoRotate = false;
+      } else if (wasAutoRotating) {
+        controls.autoRotate = true;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     globeRef.current.pointOfView({ lat: 28, lng: 50, altitude: 2.4 }, 0);
 
     // 3D starfield: three layers of points at different distances for parallax
@@ -234,16 +249,25 @@ export default function GlobeApp({ records }: Props) {
       return { geo, mat };
     };
 
+    // Star counts kept modest — three THREE.Points layers cost 3 draw calls
+    // regardless, but fewer verts = a little less to build at startup and to
+    // transform each frame. ~2k total still reads as a dense starfield.
     const layers = [
-      makeStarLayer(900, 600, 2.3, 1.0),   // bright near layer
-      makeStarLayer(1500, 1000, 1.5, 0.62), // medium
-      makeStarLayer(900, 1500, 1.0, 0.4),   // distant haze
+      makeStarLayer(650, 600, 2.3, 1.0),   // bright near layer
+      makeStarLayer(1000, 1000, 1.5, 0.62), // medium
+      makeStarLayer(550, 1500, 1.0, 0.4),   // distant haze
     ];
 
     // Crisp up the earth texture: max anisotropic filtering keeps it sharp at
     // glancing angles and when zoomed in, instead of going blurry.
     const globeMat = (globeRef.current as any).globeMaterial?.();
     const renderer = (globeRef.current as any).renderer?.();
+    // Cap the device-pixel-ratio: a Retina/4K screen otherwise renders 4–9×
+    // the pixels of a 1× display, which is the single biggest FPS lever. 1.5 is
+    // a sweet spot — still crisp, ~half the fill cost of a full 2× render.
+    if (renderer?.setPixelRatio) {
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    }
     if (globeMat && renderer?.capabilities?.getMaxAnisotropy) {
       const maxAniso = renderer.capabilities.getMaxAnisotropy();
       for (const m of [globeMat.map, globeMat.bumpMap, globeMat.specularMap, globeMat.emissiveMap]) {
@@ -265,6 +289,7 @@ export default function GlobeApp({ records }: Props) {
     return () => {
       controls.removeEventListener("start", onStart);
       controls.removeEventListener("end", onEnd);
+      document.removeEventListener("visibilitychange", onVisibility);
       if (timer) clearTimeout(timer);
       for (const s of stars) scene.remove(s);
       for (const l of layers) {
@@ -516,7 +541,10 @@ export default function GlobeApp({ records }: Props) {
           pointLng={pointLng}
           pointAltitude={pointAltitude}
           pointRadius={pointRadius}
-          pointResolution={12}
+          /* These point cylinders are the invisible (transparent) hit-volumes —
+             never seen, so they don't need many radial segments. 6 is plenty
+             for a raycast target and halves their vertex count. */
+          pointResolution={6}
           pointColor={() => "rgba(0,0,0,0)"}
           pointLabel={pointLabel}
           onPointClick={onPointClick}
