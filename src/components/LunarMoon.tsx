@@ -26,6 +26,9 @@ interface Props {
   records: Record[];
   /** open these records in the RecordModal */
   onSelect: (records: Record[]) => void;
+  /** updated every frame with the lat/lng on the globe that points at the Moon,
+   *  so the parent can fly the camera "toward the Moon" when a lunar record is shown */
+  dirRef?: React.MutableRefObject<{ lat: number; lng: number } | null>;
 }
 
 // Scene units: Earth globe is ~100-unit radius.
@@ -116,7 +119,7 @@ function clusterPoints(n: number, radius: number): THREE.Vector3[] {
   return out;
 }
 
-export default function LunarMoon({ globeRef, records, onSelect }: Props) {
+export default function LunarMoon({ globeRef, records, onSelect, dirRef }: Props) {
   const groupRef = useRef<THREE.Group | null>(null);
   const moonRef = useRef<THREE.Mesh | null>(null);
   const pinsRef = useRef<{ mesh: THREE.Group; hitGeo: THREE.Mesh; record: Record }[]>([]);
@@ -229,6 +232,12 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
           Math.sin(a) * Math.sin(ORBIT_TILT) * ORBIT_RADIUS * 0.45,
           Math.sin(a) * ORBIT_RADIUS,
         );
+        // publish the lat/lng that points at the Moon, so the parent can fly the
+        // camera "toward the Moon" when a lunar record is selected from a rail
+        if (dirRef) {
+          const g = (globeRef.current as any).toGeoCoords?.(group.position);
+          if (g) dirRef.current = { lat: g.lat, lng: g.lng };
+        }
         // the little moon-saucer's lap + own spin + a faint bob — and its bolt
         if (!reducedMotion.current) {
           const cam = globeRef.current.camera();

@@ -59,6 +59,10 @@ export default function GlobeApp({ records }: Props) {
   // OrbitControls handle — kept on a ref so the moon-click handler can pause
   // auto-rotation and modal-close can resume it.
   const controlsRef = useRef<any>(null);
+  // lat/lng on the globe that currently points at the orbiting Moon (LunarMoon
+  // updates this each frame) — so we can fly the camera "toward the Moon" when a
+  // lunar record is picked from a rail.
+  const moonDirRef = useRef<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -356,8 +360,13 @@ export default function GlobeApp({ records }: Props) {
     (rec: Record) => {
       if (!rec.location || !globeRef.current) return;
       if (rec.location.name === "Moon") {
-        // lunar record — pull the camera back so the orbiting Moon is in frame
-        globeRef.current.pointOfView({ altitude: 3.2 }, 900);
+        // lunar record — swing the camera toward the orbiting Moon (it ends up
+        // roughly centred, in front of the Earth) instead of just zooming out
+        const d = moonDirRef.current;
+        globeRef.current.pointOfView(
+          d ? { lat: d.lat, lng: d.lng, altitude: 3.0 } : { altitude: 3.2 },
+          900,
+        );
         highlightPin(null); // lunar records aren't Earth pins
         return;
       }
@@ -570,6 +579,7 @@ export default function GlobeApp({ records }: Props) {
           <LunarMoon
             globeRef={globeRef}
             records={moonRecords}
+            dirRef={moonDirRef}
             onSelect={(recs) => {
               savedPovRef.current = (globeRef.current as any)?.pointOfView() ?? null;
               // Clicking the Moon pauses the globe's spin while you read its
