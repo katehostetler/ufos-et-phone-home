@@ -110,6 +110,42 @@ export const UFO_POOL: UfoSpec[] = [
     spinSpeed: 1.0,
     driftSpeed: 3.6,
   },
+  {
+    kind: "saucer",
+    color: "#b4bcc6", // light brushed aluminum
+    glowIntensity: 0.55,
+    scale: 0.96,
+    latRange: [-48, 48],
+    lngRange: [-180, 180],
+    altitude: 0.25,
+    lifespan: 15,
+    spinSpeed: 0.95,
+    driftSpeed: 3.2,
+  },
+  {
+    kind: "saucer",
+    color: "#7e8893", // slate steel
+    glowIntensity: 0.48,
+    scale: 1.08,
+    latRange: [-40, 40],
+    lngRange: [-180, 180],
+    altitude: 0.22,
+    lifespan: 14,
+    spinSpeed: 0.8,
+    driftSpeed: 2.9,
+  },
+  {
+    kind: "saucer",
+    color: "#646c78", // graphite
+    glowIntensity: 0.42,
+    scale: 0.9,
+    latRange: [-46, 46],
+    lngRange: [-180, 180],
+    altitude: 0.27,
+    lifespan: 12,
+    spinSpeed: 1.2,
+    driftSpeed: 3.5,
+  },
 ];
 
 // ─── Transmissions ───────────────────────────────────────────────────────────
@@ -198,7 +234,7 @@ export interface SpawnManager {
 }
 
 interface SpawnManagerOptions {
-  /** Maximum concurrent UFOs (hard cap). Never more than 2 in practice. */
+  /** Maximum concurrent UFOs (hard cap). Defaults to 4. */
   cap?: number;
   /** Initial timestamp in ms */
   now: number;
@@ -211,10 +247,10 @@ interface SpawnManagerOptions {
 let _nextId = 1;
 
 export function makeSpawnManager({
-  cap = 2,
+  cap = 4,
   now,
   rnd = Math.random,
-  spawnIntervalMs = 18000,
+  spawnIntervalMs = 8000,
 }: SpawnManagerOptions): SpawnManager {
   const active = new Map<number, ActiveUfo>();
   let lastSpawnAttempt = now - spawnIntervalMs; // allow immediate first spawn

@@ -247,10 +247,15 @@ body::after {
 }
 .hof-chip:hover,
 .hof-chip:focus-visible {
+  /* override .chip's default green hover — Hall of Fame stays purple throughout */
+  color: var(--color-hof);
+  border-color: rgba(199,148,255,.75);
   background: rgba(168,99,255,.2);
   box-shadow: 0 0 14px rgba(199,148,255,.5);
   animation: none; /* stop pulsing once user interacts */
 }
+.hof-chip:hover .hof-star,
+.hof-chip:focus-visible .hof-star { filter: drop-shadow(0 0 8px rgba(199,148,255,.95)); }
 @keyframes hof-pulse {
   0%, 100% { box-shadow: 0 0 0 rgba(199,148,255,0); }
   50%      { box-shadow: 0 0 16px rgba(199,148,255,.55); }
@@ -452,11 +457,15 @@ body::after {
   font-family: var(--font-mono);
 }
 
-/* Type badge — reuses existing .type-badge conventions (defined in RecordCard) */
+/* Type badge — shared visual conventions. NOTE: this rule deliberately does NOT
+   set `position`/`top`/`left` — each surface positions its own badge. (A global
+   `left` here used to leak into RecordCard's `right`-anchored badge and stretch
+   it edge-to-edge, and into RecordModal's flex header where it overlapped the
+   location text.) The thumbnail-overlay surfaces opt in below. */
 .type-badge {
-  position: absolute;
-  top: 6px;
-  left: 6px;
+  display: inline-block;
+  width: max-content;
+  max-width: 100%;
   font-size: 8px;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -465,6 +474,14 @@ body::after {
   padding: 2px 6px;
   border-radius: 2px;
   pointer-events: none;
+}
+/* Pinned to the top-left of a thumbnail (Hall of Fame cards, Pin Rail cards). */
+.hof-thumb-wrap, .pin-rail-thumb { position: relative; }
+.hof-thumb-wrap > .type-badge,
+.pin-rail-thumb > .type-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
 }
 /* Solid-ish dark backing so the coloured text reads on any thumbnail (incl. white PDF pages) */
 .type-badge.vid { color: #ff9a9a; background: rgba(10,4,6,.82);  border: 1px solid rgba(255,59,59,.65); }

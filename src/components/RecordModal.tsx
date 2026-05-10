@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Portal from "./Portal";
+import { pickSnapState, translateForState, type SheetState } from "@/lib/bottomSheet";
 import type { Record } from "@/types/record";
 
 interface Props {
@@ -12,12 +13,32 @@ interface Props {
 
 const TYPE_LABEL = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
 
+/** Below this width the modal becomes a draggable bottom sheet. */
+const SHEET_MAX_WIDTH = 767;
+/** Fraction of the screen height left uncovered (globe visible) in the "peek" rest state. */
+const PEEK_UNCOVERED = 0.54;
+
 // Once we learn /api/tts isn't available (404 on a static deploy, or quota
 // exhausted, etc.) stop hammering it and just use the browser voice for the
 // rest of the session. `null` = not yet probed.
 let elevenLabsAvailable: boolean | null = null;
 
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = (e: MediaQueryListEvent) => setMatches(e.matches);
+    setMatches(mq.matches);
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
+}
+
 export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: Props) {
+  const isSheet = useMediaQuery(`(max-width: ${SHEET_MAX_WIDTH}px)`);
   const [idx, setIdx] = useState(0);
   const [speaking, setSpeaking] = useState(false);
   // Tracks which engine narrated last so we can show a small credit line.
@@ -27,8 +48,154 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
   // Bumped on every play start AND every stop, so an in-flight TTS request that
   // resolves after the user hit STOP (or changed record) becomes a no-op.
   const playTokenRef = useRef(0);
+
+  // ── bottom-sheet machinery (mobile only) ───────────────────────────────────
+  const backdropRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const [sheetState, setSheetState] = useState<SheetState>("peek");
+  const sheetStateRef = useRef<SheetState>("peek");
+  useEffect(() => { sheetStateRef.current = sheetState; }, [sheetState]);
+  // Sheet's downward offset in px. Starts well off-screen; an effect measures
+  // the real geometry on mount and animates it up to "peek".
+  const [translateY, setTranslateY] = useState<number>(() =>
+    typeof window !== "undefined" ? Math.round(window.innerHeight * 1.15) : 900,
+  );
+  const [dragging, setDragging] = useState(false);
+  const dragRef = useRef<{
+    startClientY: number;
+    startTranslate: number;
+    cur: number;
+    lastY: number;
+    lastT: number;
+    vel: number;
+  } | null>(null);
+
   const rec = records[idx];
 
+  /** Measure the sheet geometry (independent of the current transform). */
+  const measure = useCallback(() => {
+    const screenH =
+      backdropRef.current?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : 800);
+    const sheetH = sheetRef.current?.offsetHeight || Math.round(screenH * 0.92);
+    // Sheet is bottom-anchored; translateY(0) puts its top at (screenH - sheetH).
+    // In "peek" we want the top ~PEEK_UNCOVERED of the screen to stay uncovered.
+    const peekTopWanted = screenH * PEEK_UNCOVERED;
+    const peekTranslateY = Math.max(0, peekTopWanted - (screenH - sheetH));
+    const dismissTranslateY = sheetH; // fully off the bottom of the screen
+    return { screenH, sheetH, peekTranslateY, dismissTranslateY };
+  }, []);
+
+  const applyState = useCallback(
+    (s: SheetState) => {
+      setSheetState(s);
+      setTranslateY(translateForState(s, measure().peekTranslateY));
+    },
+    [measure],
+  );
+
+  // On mount in sheet mode (or when we cross into it): slide up from off-screen
+  // to the "peek" rest position. The double-rAF lets the initial off-screen
+  // position paint first so the transition actually plays.
+  useEffect(() => {
+    if (!isSheet) return;
+    let raf = requestAnimationFrame(() => {
+      raf = requestAnimationFrame(() => {
+        const g = measure();
+        setSheetState("peek");
+        setTranslateY(g.peekTranslateY);
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [isSheet, measure]);
+
+  // Keep the sheet pinned to its current rest state across viewport resizes.
+  useEffect(() => {
+    if (!isSheet) return;
+    const onResize = () => {
+      if (dragRef.current) return;
+      setTranslateY(translateForState(sheetStateRef.current, measure().peekTranslateY));
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [isSheet, measure]);
+
+  // ── drag handlers ──────────────────────────────────────────────────────────
+  const onDragMove = useCallback(
+    (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const { sheetH } = measure();
+      const delta = e.clientY - d.startClientY;
+      const next = Math.max(0, Math.min(sheetH, d.startTranslate + delta));
+      const now = performance.now();
+      const dt = Math.max(1, now - d.lastT);
+      d.vel = (e.clientY - d.lastY) / dt;
+      d.lastY = e.clientY;
+      d.lastT = now;
+      d.cur = next;
+      setTranslateY(next);
+    },
+    [measure],
+  );
+
+  const onDragEnd = useCallback(() => {
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", onDragEnd);
+    window.removeEventListener("pointercancel", onDragEnd);
+    const d = dragRef.current;
+    dragRef.current = null;
+    setDragging(false);
+    if (!d) return;
+    const { peekTranslateY, dismissTranslateY } = measure();
+    const fromState: SheetState = d.startTranslate <= peekTranslateY * 0.5 ? "full" : "peek";
+    const result = pickSnapState({
+      translateY: d.cur,
+      velocityY: d.vel,
+      peekTranslateY,
+      dismissTranslateY,
+      from: fromState,
+    });
+    if (result === "dismiss") {
+      onClose();
+      return;
+    }
+    applyState(result);
+  }, [measure, onDragMove, applyState, onClose]);
+
+  const onDragStart = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isSheet) return;
+      // Don't start a drag from an interactive control inside the header (the
+      // close button) — let it receive its click.
+      if ((e.target as HTMLElement).closest("button, a")) return;
+      const start = translateForState(sheetStateRef.current, measure().peekTranslateY);
+      dragRef.current = {
+        startClientY: e.clientY,
+        startTranslate: start,
+        cur: start,
+        lastY: e.clientY,
+        lastT: performance.now(),
+        vel: 0,
+      };
+      setDragging(true);
+      window.addEventListener("pointermove", onDragMove);
+      window.addEventListener("pointerup", onDragEnd);
+      window.addEventListener("pointercancel", onDragEnd);
+    },
+    [isSheet, measure, onDragMove, onDragEnd],
+  );
+
+  // Tidy up window listeners if we unmount mid-drag.
+  useEffect(
+    () => () => {
+      window.removeEventListener("pointermove", onDragMove);
+      window.removeEventListener("pointerup", onDragEnd);
+      window.removeEventListener("pointercancel", onDragEnd);
+    },
+    [onDragMove, onDragEnd],
+  );
+
+  // ── keyboard ───────────────────────────────────────────────────────────────
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -55,22 +222,28 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     setSpeaking(false);
   }
 
+  // Reset per-record state when the record set changes (e.g. tapping a different
+  // pin while the sheet is open swaps the content). Keep the sheet's open/peek
+  // state so the user can keep browsing.
+  const recordsKey = records.map((r) => r.id).join("|");
+  useEffect(() => {
+    setIdx(0);
+  }, [recordsKey]);
+
   // Stop TTS whenever the active record changes or the modal closes.
   useEffect(() => stopSpeech, []);
   useEffect(() => {
     stopSpeech();
     setTtsEngine(null);
-  }, [idx]);
+  }, [idx, recordsKey]);
 
   // Pick the best available English voice. Priority — top is best:
-  //   1. Google's cloud voices (Chrome bundles "Google US English" / "Google UK English Female";
-  //      these stream from Google's servers, very natural)
+  //   1. Google's cloud voices (Chrome bundles "Google US English" / "Google UK English Female")
   //   2. Microsoft "Natural"/"Online" voices (Edge bundles e.g. "Microsoft Aria Online (Natural)")
   //   3. Apple Premium / Enhanced voices on macOS / iOS Safari ("(Premium)" / "(Enhanced)")
   //   4. Named macOS voices that don't carry the suffix but are still better than default
   //   5. Any en-US / en-GB voice
   //   6. Any en-* voice
-  // The browser may return an empty list on first call — voices load async.
   function pickVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice | undefined {
     const en = voices.filter((v) => v.lang?.startsWith("en"));
     const enGoodLangs = en.filter((v) => /^en-(US|GB|AU|CA|IE)$/i.test(v.lang));
@@ -78,13 +251,14 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
       enGoodLangs.find((v) => /^Google\s+(US|UK)\s+English/i.test(v.name)) ||
       enGoodLangs.find((v) => /Online.*Natural/i.test(v.name) || /Microsoft.*Natural/i.test(v.name)) ||
       enGoodLangs.find((v) => /\((Premium|Enhanced|Neural|Natural)\)/i.test(v.name)) ||
-      enGoodLangs.find((v) => /^(Samantha|Daniel|Karen|Moira|Tessa|Allison|Ava|Evan|Joelle|Noelle|Susan|Tom|Zoe)$/i.test(v.name)) ||
+      enGoodLangs.find((v) =>
+        /^(Samantha|Daniel|Karen|Moira|Tessa|Allison|Ava|Evan|Joelle|Noelle|Susan|Tom|Zoe)$/i.test(v.name),
+      ) ||
       enGoodLangs[0] ||
       en[0]
     );
   }
 
-  // Voices populate asynchronously — return what's there, else wait for `voiceschanged`.
   function getVoicesAsync(): Promise<SpeechSynthesisVoice[]> {
     return new Promise((resolve) => {
       const synth = window.speechSynthesis;
@@ -95,7 +269,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
         resolve(synth.getVoices());
       };
       synth.addEventListener("voiceschanged", onChange);
-      // Safety timeout — if voiceschanged never fires, resolve with whatever we have.
       setTimeout(() => {
         synth.removeEventListener("voiceschanged", onChange);
         resolve(synth.getVoices());
@@ -103,7 +276,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     });
   }
 
-  // Browser speechSynthesis fallback.
   async function speakViaBrowser() {
     if (typeof window === "undefined" || !window.speechSynthesis || !rec.blurb) {
       setSpeaking(false);
@@ -111,29 +283,25 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     }
     const voices = await getVoicesAsync();
     const utt = new SpeechSynthesisUtterance(rec.blurb);
-    // Natural defaults — slowing/lowering the rate+pitch on already-bad voices
-    // makes them sound *worse*. Trust good voices to sound good at 1.0.
     utt.rate = 1.0;
     utt.pitch = 1.0;
     utt.volume = 1.0;
     const preferred = pickVoice(voices);
     if (preferred) {
       utt.voice = preferred;
-      // Lock the lang to the chosen voice's lang, otherwise some browsers silently
-      // re-pick a default voice for the utterance's lang field.
       utt.lang = preferred.lang;
     }
-    utt.onend = () => { setSpeaking(false); };
-    utt.onerror = () => { setSpeaking(false); };
+    utt.onend = () => {
+      setSpeaking(false);
+    };
+    utt.onerror = () => {
+      setSpeaking(false);
+    };
     window.speechSynthesis.speak(utt);
     setSpeaking(true);
     setTtsEngine("browser");
   }
 
-  // Try the ElevenLabs proxy. Returns "played" on success, "fallback" if the
-  // service is unavailable (so the caller falls back to the browser voice), or
-  // "cancelled" if the user stopped / changed record while the request was in
-  // flight (the caller should do nothing).
   async function speakViaElevenLabs(token: number): Promise<"played" | "fallback" | "cancelled"> {
     if (elevenLabsAvailable === false) return "fallback";
     let res: Response;
@@ -149,8 +317,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     }
     if (token !== playTokenRef.current) return "cancelled";
     if (!res.ok || !(res.headers.get("content-type") || "").includes("audio")) {
-      // 503 (not configured) / 404 (static deploy) / 429 (quota) — stop trying.
-      // A transient 5xx (502) we'll allow to retry next time.
       if (res.status !== 502) elevenLabsAvailable = false;
       return "fallback";
     }
@@ -186,139 +352,191 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
       return;
     }
     const token = ++playTokenRef.current;
-    setSpeaking(true); // optimistic — button flips while the request is in flight
+    setSpeaking(true);
     const result = await speakViaElevenLabs(token);
     if (result === "cancelled") return;
     if (result === "played") return;
-    // ElevenLabs unavailable — make sure the optimistic state is still ours,
-    // then fall back to the browser voice.
     if (token !== playTokenRef.current) return;
     await speakViaBrowser();
   }
 
   if (!rec) return null;
 
-  return (
-    <Portal>
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-slide-in" onClick={(e) => e.stopPropagation()}>
-        <header className="modal-head">
-          <span className="loc">
-            <span className="dot" />
-            {rec.location?.name || "UNLOCATED"}
+  const headerEl = (
+    <header className="modal-head">
+      <span className="loc">
+        <span className={`dot ${rec.mediaType}`} />
+        {rec.location?.name || "LOCATION UNKNOWN"}
+      </span>
+      {!isSheet && <span className={`type-badge ${rec.mediaType}`}>{TYPE_LABEL[rec.mediaType]}</span>}
+      {!isSheet && records.length > 1 && (
+        <span className="counter">
+          {idx + 1} / {records.length}
+        </span>
+      )}
+      <button className="close-btn" onClick={onClose} aria-label={closeLabel}>
+        <span className="close-x">✕</span>
+        <span className="close-label">{closeLabel}</span>
+      </button>
+    </header>
+  );
+
+  const heroEl = (
+    <div className={`modal-hero ${rec.mediaType === "vid" ? "is-video" : "is-still"}`}>
+      {rec.mediaType === "vid" && rec.videoMp4Url ? (
+        <video
+          key={rec.id}
+          controls
+          autoPlay
+          playsInline
+          preload="metadata"
+          poster={rec.thumbnailUrl ?? undefined}
+          src={rec.videoMp4Url}
+        />
+      ) : rec.mediaType === "vid" && rec.dvidsVideoId ? (
+        <iframe
+          src={`https://www.dvidshub.net/video/embed/${rec.dvidsVideoId}`}
+          allow="autoplay; fullscreen"
+          allowFullScreen
+          title={rec.title}
+        />
+      ) : rec.mediaType === "img" && rec.assetUrl ? (
+        <img src={rec.assetUrl} alt={rec.title} />
+      ) : rec.thumbnailUrl ? (
+        <img src={rec.thumbnailUrl} alt={`${rec.title} thumbnail`} />
+      ) : (
+        <div className="modal-hero-placeholder">No preview available</div>
+      )}
+    </div>
+  );
+
+  const bodyEl = (
+    <div className="modal-body">
+      {!isSheet && <h2 className="modal-title">{rec.title}</h2>}
+      <div className="modal-meta">
+        <span>
+          <em>AGENCY</em> {rec.agency}
+        </span>
+        {rec.date && (
+          <span>
+            <em>DATE</em> {rec.date}
           </span>
-          <span className={`type-badge ${rec.mediaType}`}>{TYPE_LABEL[rec.mediaType]}</span>
-          {records.length > 1 && (
-            <span className="counter">
-              {idx + 1} / {records.length}
-            </span>
-          )}
-          <button className="close-btn" onClick={onClose} aria-label={closeLabel}>
-            <span className="close-x">✕</span>
-            <span className="close-label">{closeLabel}</span>
-          </button>
-        </header>
+        )}
+        {rec.location && (
+          <span>
+            <em>LOCATION</em> {rec.location.name}
+          </span>
+        )}
+        {rec.redaction === "TRUE" && <span className="redacted">REDACTED</span>}
+      </div>
 
-        <div className={`modal-hero ${rec.mediaType === "vid" ? "is-video" : "is-still"}`}>
-          {rec.mediaType === "vid" && rec.videoMp4Url ? (
-            <video
-              key={rec.id}
-              controls
-              playsInline
-              preload="metadata"
-              poster={rec.thumbnailUrl ?? undefined}
-              src={rec.videoMp4Url}
-            />
-          ) : rec.mediaType === "vid" && rec.dvidsVideoId ? (
-            <iframe
-              src={`https://www.dvidshub.net/video/embed/${rec.dvidsVideoId}`}
-              allowFullScreen
-              title={rec.title}
-            />
-          ) : rec.mediaType === "img" && rec.assetUrl ? (
-            <img src={rec.assetUrl} alt={rec.title} />
-          ) : rec.thumbnailUrl ? (
-            <img src={rec.thumbnailUrl} alt={`${rec.title} thumbnail`} />
-          ) : (
-            <div className="modal-hero-placeholder">No preview available</div>
-          )}
-        </div>
-
-        <div className="modal-body">
-          <h2 className="modal-title">{rec.title}</h2>
-          <div className="modal-meta">
-            <span>
-              <em>AGENCY</em> {rec.agency}
-            </span>
-            {rec.date && (
-              <span>
-                <em>DATE</em> {rec.date}
-              </span>
-            )}
-            {rec.location && (
-              <span>
-                <em>LOCATION</em> {rec.location.name}
-              </span>
-            )}
-            {rec.redaction === "TRUE" && <span className="redacted">REDACTED</span>}
-          </div>
-
-          {rec.blurb && (
-            <div className="modal-blurb-block">
-              <div className="tts-controls">
-                <button
-                  className={`tts-btn ${speaking ? "playing" : ""}`}
-                  onClick={speakBlurb}
-                  aria-label={speaking ? "Stop reading" : "Read aloud"}
-                  title={speaking ? "Stop reading" : "Read aloud"}
-                >
-                  <span className="tts-icon">{speaking ? "■" : "▶"}</span>
-                  <span className="tts-label">{speaking ? "STOP" : "LISTEN"}</span>
-                </button>
-                {ttsEngine === "elevenlabs" && (
-                  <a
-                    className="tts-credit"
-                    href="https://elevenlabs.io/text-to-speech"
-                    target="_blank"
-                    rel="noopener"
-                    title="Narration generated with ElevenLabs"
-                  >
-                    voice · ElevenLabs
-                  </a>
-                )}
-              </div>
-              <p className="modal-blurb">{rec.blurb}</p>
-            </div>
-          )}
-
-          <div className="modal-actions">
-            {rec.assetUrl && (
-              <a className="action primary" href={rec.assetUrl} target="_blank" rel="noopener">
-                {rec.mediaType === "vid"
-                  ? "OPEN ON DVIDS →"
-                  : rec.mediaType === "img"
-                  ? "OPEN FULL IMAGE →"
-                  : "VIEW SOURCE PDF →"}
+      {rec.blurb && (
+        <div className="modal-blurb-block">
+          <div className="tts-controls">
+            <button
+              className={`tts-btn ${speaking ? "playing" : ""}`}
+              onClick={speakBlurb}
+              aria-label={speaking ? "Stop reading" : "Read aloud"}
+              title={speaking ? "Stop reading" : "Read aloud"}
+            >
+              <span className="tts-icon">{speaking ? "■" : "▶"}</span>
+              <span className="tts-label">{speaking ? "STOP" : "LISTEN"}</span>
+            </button>
+            {ttsEngine === "elevenlabs" && (
+              <a
+                className="tts-credit"
+                href="https://elevenlabs.io/text-to-speech"
+                target="_blank"
+                rel="noopener"
+                title="Narration generated with ElevenLabs"
+              >
+                voice · ElevenLabs
               </a>
             )}
-            <a className="action" href={rec.sourcePage} target="_blank" rel="noopener">
-              WAR.GOV/UFO →
-            </a>
           </div>
+          <p className="modal-blurb">{rec.blurb}</p>
         </div>
+      )}
 
-        {records.length > 1 && (
-          <nav className="modal-nav">
-            <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>
-              ← PREV
-            </button>
-            <button
-              onClick={() => setIdx((i) => Math.min(records.length - 1, i + 1))}
-              disabled={idx === records.length - 1}
-            >
-              NEXT →
-            </button>
-          </nav>
+      <div className="modal-actions">
+        {rec.assetUrl && (
+          <a className="action primary" href={rec.assetUrl} target="_blank" rel="noopener">
+            {rec.mediaType === "vid"
+              ? "OPEN ON DVIDS →"
+              : rec.mediaType === "img"
+              ? "OPEN FULL IMAGE →"
+              : "VIEW SOURCE PDF →"}
+          </a>
+        )}
+        <a className="action" href={rec.sourcePage} target="_blank" rel="noopener">
+          WAR.GOV/UFO →
+        </a>
+      </div>
+    </div>
+  );
+
+  const navEl = records.length > 1 && (
+    <nav className="modal-nav">
+      <button onClick={() => setIdx((i) => Math.max(0, i - 1))} disabled={idx === 0}>
+        ← PREV
+      </button>
+      <button
+        onClick={() => setIdx((i) => Math.min(records.length - 1, i + 1))}
+        disabled={idx === records.length - 1}
+      >
+        NEXT →
+      </button>
+    </nav>
+  );
+
+  return (
+    <Portal>
+      <div
+        ref={backdropRef}
+        className={`modal-backdrop ${isSheet ? "modal-backdrop--sheet" : ""}`}
+        onClick={isSheet ? undefined : onClose}
+      >
+        {isSheet ? (
+          <div
+            ref={sheetRef}
+            className={`modal modal--sheet modal--${sheetState}${dragging ? " is-dragging" : ""}`}
+            style={{ transform: `translateY(${Math.round(translateY)}px)` }}
+          >
+            <div className="sheet-handle" onPointerDown={onDragStart}>
+              <div className="sheet-grabber" aria-hidden="true" />
+              {headerEl}
+            </div>
+            <div className={`sheet-scroll${sheetState === "full" ? " is-scrollable" : ""}`}>
+              <div className="sheet-titlebar">
+                <h2 className="sheet-title">{rec.title}</h2>
+                <div className="sheet-sub">
+                  <span className={`type-badge ${rec.mediaType}`}>{TYPE_LABEL[rec.mediaType]}</span>
+                  <span className="sheet-sub-text">
+                    {rec.agency}
+                    {rec.year ? ` · ${rec.year}` : ""}
+                    {records.length > 1 && (
+                      <span className="sheet-counter"> · {idx + 1}/{records.length}</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+              {sheetState === "peek" && (
+                <button type="button" className="sheet-readmore" onClick={() => applyState("full")}>
+                  ↑&nbsp;&nbsp;SWIPE UP FOR THE FULL REPORT
+                </button>
+              )}
+              {heroEl}
+              {bodyEl}
+              {navEl}
+            </div>
+          </div>
+        ) : (
+          <div className="modal modal-slide-in" onClick={(e) => e.stopPropagation()}>
+            {headerEl}
+            {heroEl}
+            {bodyEl}
+            {navEl}
+          </div>
         )}
       </div>
 
@@ -373,19 +591,13 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
         .dot {
           width: 7px; height: 7px;
           border-radius: 50%;
-          background: var(--color-vid);
-          box-shadow: 0 0 8px var(--color-vid);
+          background: var(--color-hud);
+          box-shadow: 0 0 8px currentColor;
+          flex-shrink: 0;
         }
-        .type-badge {
-          font-size: 9px;
-          letter-spacing: .2em;
-          padding: 3px 8px;
-          border-radius: 2px;
-          font-weight: 700;
-        }
-        .type-badge.vid { background: rgba(255,59,59,.15);  border: 1px solid rgba(255,59,59,.4);  color: #ff8a8a; }
-        .type-badge.img { background: rgba(90,215,255,.15); border: 1px solid rgba(90,215,255,.4); color: #8de3ff; }
-        .type-badge.pdf { background: rgba(255,200,112,.15); border: 1px solid rgba(255,200,112,.4); color: #ffd690; }
+        .dot.vid { background: var(--color-vid); color: var(--color-vid); }
+        .dot.img { background: var(--color-img); color: var(--color-img); }
+        .dot.pdf { background: var(--color-pdf); color: var(--color-pdf); }
         .counter {
           font-size: 10px;
           letter-spacing: .15em;
@@ -407,6 +619,7 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           display: inline-flex;
           align-items: center;
           gap: 8px;
+          white-space: nowrap;
         }
         .close-btn:hover {
           background: rgba(106,255,200,.18);
@@ -422,7 +635,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           overflow: hidden;
           display: flex; align-items: center; justify-content: center;
         }
-        /* Video / DVIDS embeds: fixed 16/9 frame. */
         .modal-hero.is-video {
           aspect-ratio: 16/9;
           max-height: min(56vh, 480px);
@@ -436,8 +648,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           background: #06080d;
           display: block;
         }
-        /* Stills (photos / PDF cover thumbnails): show at natural aspect, just
-           cap the height so they don't push the title miles down. */
         .modal-hero.is-still img {
           width: 100%;
           height: auto;
@@ -551,6 +761,7 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           display: flex;
           gap: 10px;
           flex-wrap: wrap;
+          margin-top: 18px;
         }
         .action {
           display: inline-flex; align-items: center;
@@ -572,10 +783,6 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
         }
         .action.primary:hover {
           background: #8affe0;
-        }
-
-        .modal-actions {
-          margin-top: 18px;
         }
         .modal-nav {
           display: flex;
@@ -601,55 +808,171 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           opacity: .25; cursor: not-allowed;
         }
 
-        /* MOBILE: panel goes full-screen (no room for the globe behind), but
-           still scrolls as one continuous unit with a sticky header. */
-        @media (max-width: 768px) {
-          .modal-backdrop { background: rgba(2,4,8,.6); }
-          .modal {
+        /* ============================================================ */
+        /* MOBILE (≤767px) — the panel becomes a draggable bottom sheet   */
+        /* ============================================================ */
+        @media (max-width: ${SHEET_MAX_WIDTH}px) {
+          .modal-backdrop.modal-backdrop--sheet {
+            /* Click-through: the globe behind the sheet stays interactive — only
+               the sheet itself catches pointer events. */
+            background: transparent;
+            backdrop-filter: none;
+            pointer-events: none;
+            display: block;
+          }
+          .modal--sheet {
+            pointer-events: auto;
+            position: absolute;
+            left: 0; right: 0; bottom: 0;
             width: 100%;
+            height: 92vh;
+            height: 92dvh;
+            max-height: 92dvh;
             border-right: none;
-            border-top: 1px solid rgba(106,255,200,.3);
-            box-shadow: none;
+            border-top: 1px solid rgba(106,255,200,.4);
+            border-radius: 16px 16px 0 0;
+            box-shadow: 0 -8px 40px rgba(0,0,0,.6), 0 0 60px rgba(106,255,200,.06) inset;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transform: translateY(110%);
+            transition: transform .34s cubic-bezier(.16, 1, .3, 1);
+            animation: none;
           }
-          .modal-head {
-            padding: 10px 12px;
-            gap: 12px;
-            row-gap: 7px;
-            flex-wrap: wrap;
-            /* extra top space for the notch / status bar on edge-to-edge phones */
-            padding-top: calc(10px + env(safe-area-inset-top, 0px));
+          .modal--sheet.is-dragging { transition: none; }
+          @media (prefers-reduced-motion: reduce) { .modal--sheet { transition: none; } }
+
+          /* drag zone: the grabber bar + header, pinned to the top of the sheet */
+          .sheet-handle {
+            flex-shrink: 0;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: grab;
+            background: rgba(8,11,17,.97);
+            backdrop-filter: blur(6px);
+            border-bottom: 1px solid var(--color-line);
+            padding-top: env(safe-area-inset-top, 0px);
           }
-          .modal-head .loc { font-size: 9px; letter-spacing: .16em; flex-shrink: 0; }
-          .modal-head .type-badge { flex-shrink: 0; }
-          .modal-head .counter { font-size: 9px; flex-shrink: 0; }
-          /* Big obvious close button on mobile */
-          .close-btn {
-            height: 36px;
-            padding: 0 14px;
+          .sheet-handle:active { cursor: grabbing; }
+          .sheet-grabber {
+            width: 40px; height: 4px;
+            border-radius: 2px;
+            background: rgba(106,255,200,.5);
+            margin: 8px auto 2px;
+          }
+          .modal--sheet .modal-head {
+            position: static;
+            background: transparent;
+            backdrop-filter: none;
+            border-bottom: none;
+            padding: 4px 12px 10px;
+            gap: 10px;
+            flex-wrap: nowrap;
+          }
+          .modal--sheet .modal-head .loc {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 9.5px;
+            letter-spacing: .14em;
+          }
+          .modal--sheet .close-btn {
+            flex-shrink: 0;
+            margin-left: 4px;
+            height: 32px;
+            padding: 0 11px;
             background: rgba(106,255,200,.16);
             border-color: var(--color-hud);
             font-weight: 700;
+            font-size: 9.5px;
+            letter-spacing: .1em;
+            gap: 6px;
           }
-          .close-x { font-size: 15px; }
-          .modal-hero.is-video { max-height: 42vh; min-height: 170px; }
-          .modal-hero.is-still img { max-height: 56vh; }
-          .modal-body { padding: 16px 16px 24px; }
-          .modal-title { font-size: 16px; }
-          .modal-meta { gap: 8px 14px; font-size: 9px; }
-          .modal-blurb { font-size: 13px; line-height: 1.62; }
-          .modal-actions { gap: 8px; }
-          .action {
+          .modal--sheet .close-x { font-size: 13px; }
+
+          /* scrollable content region (everything below the drag zone) */
+          .sheet-scroll {
+            flex: 1 1 auto;
+            overflow-y: hidden;
+            overflow-x: hidden;
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
+          }
+          .sheet-scroll.is-scrollable { overflow-y: auto; }
+
+          .sheet-titlebar {
+            padding: 12px 16px 11px;
+            border-bottom: 1px solid var(--color-line);
+          }
+          .sheet-title {
+            font-family: var(--font-display);
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.32;
+            margin: 0 0 7px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          .sheet-sub {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 9px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            color: rgba(255,255,255,.55);
+          }
+          .sheet-sub .type-badge { flex-shrink: 0; }
+          .sheet-sub-text {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          .sheet-counter { color: var(--color-hud); }
+
+          .sheet-readmore {
+            display: block;
+            width: 100%;
+            background: rgba(106,255,200,.06);
+            border: 0;
+            border-bottom: 1px dashed rgba(106,255,200,.22);
+            color: var(--color-hud);
+            font-family: var(--font-mono);
+            font-size: 9px;
+            letter-spacing: .22em;
+            text-transform: uppercase;
+            padding: 9px 12px;
+            cursor: pointer;
+            text-align: center;
+          }
+          .sheet-readmore:hover { background: rgba(106,255,200,.12); }
+
+          /* hero / body / nav tweaks for the sheet */
+          .modal--sheet .modal-hero.is-video { aspect-ratio: 16/9; max-height: 38vh; min-height: 150px; }
+          .modal--sheet .modal-hero.is-still img { max-height: 52vh; }
+          .modal--sheet .modal-hero-placeholder { padding: 36px 0; }
+          .modal--sheet .modal-body { padding: 16px 16px 22px; }
+          .modal--sheet .modal-title { font-size: 16px; }
+          .modal--sheet .modal-meta { gap: 8px 14px; font-size: 9px; }
+          .modal--sheet .modal-blurb { font-size: 13px; line-height: 1.6; }
+          .modal--sheet .modal-actions { gap: 8px; }
+          .modal--sheet .action {
             padding: 11px 14px;
             font-size: 10px;
             flex: 1 1 auto;
             justify-content: center;
             text-align: center;
           }
-          .modal-nav { padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
-          .modal-nav button { padding: 9px 16px; font-size: 10px; }
+          .modal--sheet .modal-nav { padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px)); }
+          .modal--sheet .modal-nav button { padding: 9px 16px; font-size: 10px; }
         }
       `}</style>
-    </div>
     </Portal>
   );
 }

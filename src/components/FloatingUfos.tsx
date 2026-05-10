@@ -5,8 +5,9 @@
  * scene. Each saucer wanders sporadically (occasional heading impulses) and
  * jets away if the cursor gets near it. Clicking one opens the TransmissionModal.
  *
- * - Never more than 2 craft on screen at once (enforced by makeSpawnManager);
- *   the spawner won't reuse a colour that's already up, so they're never twins.
+ * - Up to 4 craft on screen at once (enforced by makeSpawnManager); the spawner
+ *   won't reuse a colour that's already up, so no two of them ever look alike.
+ *   They flee when the cursor closes in, but only a short dart — catchable.
  * - Dispose geometry + materials + textures on despawn / unmount; reuse the
  *   Raycaster + Vector2.
  * - Respect prefers-reduced-motion (no drift / spin / flee — just static, clickable).
@@ -115,6 +116,14 @@ function buildSaucerMesh(spec: UfoSpec): UfoMeshData {
   under.position.y = -0.34;
   group.add(under);
 
+  // Invisible, generously-sized hit sphere — so you can actually *catch* a craft
+  // without pixel-perfect aim. Opacity 0 (never drawn) but still raycastable.
+  const hitGeo = new THREE.SphereGeometry(4.6, 8, 6);
+  geos.push(hitGeo);
+  const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
+  mats.push(hitMat);
+  group.add(new THREE.Mesh(hitGeo, hitMat));
+
   group.scale.setScalar(spec.scale);
   return { mesh: group, geos, mats, textures, baseScale: spec.scale };
 }
@@ -133,7 +142,10 @@ interface SceneUfo {
   fleeUntil: number;
 }
 
-const FLEE_NDC_RADIUS = 0.18; // how close (in screen NDC) the cursor must get to spook a craft
+// How close (in screen NDC) the cursor must get to spook a craft. Kept fairly
+// small so a craft only bolts when you're really closing in — gives you room to
+// chase one down rather than it being impossible to approach.
+const FLEE_NDC_RADIUS = 0.12;
 
 export default function FloatingUfos({ globeRef }: FloatingUfosProps) {
   const [transmissionText, setTransmissionText] = useState<string | null>(null);
@@ -194,14 +206,16 @@ export default function FloatingUfos({ globeRef }: FloatingUfosProps) {
       groupRef.current = group;
       scene.add(group);
 
-      const spawnManager = makeSpawnManager({ cap: 2, now: performance.now(), spawnIntervalMs: 18000 });
+      const spawnManager = makeSpawnManager({ cap: 4, now: performance.now(), spawnIntervalMs: 8000 });
       let lastFrameTime = performance.now();
 
       function clampSpeed(entry: SceneUfo, now: number) {
         const base = entry.data.spec.driftSpeed;
         const fleeing = now < entry.fleeUntil;
         const min = base * 0.25;
-        const max = base * (fleeing ? 9 : 2.4);
+        // A flee is a quick *dart* (≈3× cruise for a beat), not a hyperspace
+        // jump — you should be able to run one down with some effort.
+        const max = base * (fleeing ? 3 : 2.4);
         const sp = Math.hypot(entry.velLat, entry.velLng);
         if (sp < 1e-4) {
           // pointing nowhere — give it a random heading at min speed
@@ -264,10 +278,11 @@ export default function FloatingUfos({ globeRef }: FloatingUfosProps) {
               const ndx = tmpVec.current.x - pointer.current.x;
               const ndy = tmpVec.current.y - pointer.current.y;
               if (ndx * ndx + ndy * ndy < FLEE_NDC_RADIUS * FLEE_NDC_RADIUS && tmpVec.current.z < 1) {
-                // jet off — big impulse roughly in its current heading + a kick
-                entry.fleeUntil = now + 1100;
+                // dart away — a short, moderate impulse roughly away-and-aside,
+                // not a teleport. It'll be back to a normal cruise within ~0.65s.
+                entry.fleeUntil = now + 650;
                 const a = Math.atan2(entry.velLng, entry.velLat) + (Math.random() - 0.5) * 1.2;
-                const kick = entry.data.spec.driftSpeed * 6;
+                const kick = entry.data.spec.driftSpeed * 2.2;
                 entry.velLat += Math.cos(a) * kick;
                 entry.velLng += Math.sin(a) * kick;
               }

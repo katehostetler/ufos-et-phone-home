@@ -32,12 +32,6 @@ export default function GlobeApp({ records }: Props) {
   const [queueType, setQueueType] = useState<QueueType | null>(null);
   // which media type's pin-rail (slim left list) is open, if any
   const [pinRailType, setPinRailType] = useState<MediaType | null>(null);
-  const [touchPreview, setTouchPreview] = useState<{
-    rec: Record;
-    x: number;
-    y: number;
-  } | null>(null);
-  const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Saved camera position so we can restore the user's view after they close
   // a modal opened by clicking a pin.
   const savedPovRef = useRef<{ lat: number; lng: number; altitude: number } | null>(null);
@@ -265,76 +259,118 @@ export default function GlobeApp({ records }: Props) {
     [records],
   );
 
-  function openLocationModal(p: Record) {
-    if (!p.location) return;
-    const same = records.filter(
-      (r) =>
-        r.hasLocation &&
-        r.location?.name === p.location?.name,
-    );
-    if (same.length === 0) return;
-    // Snapshot the user's current view so we can return them here on close.
-    if (globeRef.current) {
-      savedPovRef.current = (globeRef.current as any).pointOfView() ?? null;
-    }
-    setModalRecords(same);
-  }
+  const openLocationModal = useCallback(
+    (p: Record) => {
+      if (!p.location) return;
+      const same = records.filter(
+        (r) => r.hasLocation && r.location?.name === p.location?.name,
+      );
+      if (same.length === 0) return;
+      // Snapshot the user's current view so we can return them here on close.
+      if (globeRef.current) {
+        savedPovRef.current = (globeRef.current as any).pointOfView() ?? null;
+      }
+      setModalRecords(same);
+    },
+    [records],
+  );
 
-  function closeModalPreservingView() {
+  const closeModalPreservingView = useCallback(() => {
     setModalRecords(null);
     // Restore the camera position the user was at before they clicked.
     if (globeRef.current && savedPovRef.current) {
       (globeRef.current as any).pointOfView(savedPovRef.current, 700);
       savedPovRef.current = null;
     }
-  }
+  }, []);
 
-  function onPointClick(point: object, event?: MouseEvent) {
-    const p = point as Record;
-    if (!p.location) return;
+  // A single tap/click on a pin opens the record (a bottom sheet on mobile, the
+  // left-docked panel on desktop). Camera stays put — tapping a pin shouldn't
+  // make you lose your place on the globe.
+  const onPointClick = useCallback(
+    (point: object) => {
+      openLocationModal(point as Record);
+    },
+    [openLocationModal],
+  );
 
-    // Touch devices: first tap previews (like desktop hover), second tap opens.
-    if (isTouch) {
-      if (touchPreview && touchPreview.rec.id === p.id) {
-        // confirmed tap → open
-        setTouchPreview(null);
-        if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-        openLocationModal(p);
-        return;
+  // ── memoized Globe accessor props ──────────────────────────────────────────
+  // react-globe.gl re-applies a prop (and re-runs the underlying layer setup)
+  // whenever its identity changes — so an inline arrow here would rebuild every
+  // pushpin mesh on every GlobeApp re-render (e.g. opening a modal). Keep them
+  // stable; only `isTouch` actually affects them.
+  const pointLat = useCallback((d: any) => d.location.lat, []);
+  const pointLng = useCallback((d: any) => d.location.lng, []);
+  const pointAltitude = useCallback(
+    (d: any) => pushpinAltitude({ regional: d.location.regional, touch: isTouch }),
+    [isTouch],
+  );
+  const pointRadius = useCallback(
+    (d: any) => {
+      // Generous invisible hit-volume — ~2x the bead — so hovering/tapping near
+      // a pin registers without pixel-perfect aim. Transparent, so the bigger
+      // target is invisible. Kept moderate so dense clusters don't mis-target.
+      const base = (d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * 2.0;
+      return isTouch ? base * PUSHPIN.touchScale : base;
+    },
+    [isTouch],
+  );
+  const pointLabel = useCallback(
+    (d: any) =>
+      // Hover tooltip — desktop (fine-pointer) only. Touch devices get the
+      // bottom-sheet preview instead, so suppress the floating label there.
+      isTouch
+        ? ""
+        : `<div class="pin-tooltip">
+            <div class="loc">${escapeHtml(d.location.name)}</div>
+            <div class="ttl">${escapeHtml(truncate(d.title, 60))}</div>
+            <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}</div>
+          </div>`,
+    [isTouch],
+  );
+  const onPointHover = useCallback(
+    (point: any) => {
+      // No "jump" on touch — there's no hover there, and toggling the scale on
+      // the synthetic mouse events a tap fires made the pin bounce instead of
+      // opening. Desktop: grow the hovered pin a touch.
+      if (isTouch) return;
+      const newId: string | null = point?.id ?? null;
+      const oldId = hoveredPinIdRef.current;
+      if (newId === oldId) return;
+      if (oldId) {
+        const om = pinMeshesRef.current.get(oldId);
+        if (om) om.scale.setScalar(1);
       }
-      // first tap → show preview overlay near tap location
-      const x = event?.clientX ?? window.innerWidth / 2;
-      const y = event?.clientY ?? window.innerHeight / 2;
-      setTouchPreview({ rec: p, x, y });
-      // Don't fly the globe on preview tap — Kate said it's confusing to lose
-      // your spot on the globe just for a peek. Camera stays put.
-      // auto-dismiss after 6 seconds if no second tap
-      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-      previewTimerRef.current = setTimeout(() => setTouchPreview(null), 6000);
-      return;
-    }
-
-    // Desktop: open modal directly
-    openLocationModal(p);
-  }
-
-  // dismiss touch preview when user taps anywhere outside a pin
-  useEffect(() => {
-    if (!touchPreview) return;
-    function dismiss(e: PointerEvent) {
-      const target = e.target as HTMLElement | null;
-      if (target?.closest?.(".touch-preview")) return; // click was on preview itself — let onClick handle
-      setTouchPreview(null);
-    }
-    // delay one tick so the originating tap doesn't immediately dismiss
-    const t = setTimeout(() => {
-      window.addEventListener("pointerdown", dismiss);
-    }, 50);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("pointerdown", dismiss);
-    };
-  }, [touchPreview]);
+      if (newId) {
+        const nm = pinMeshesRef.current.get(newId);
+        if (nm) nm.scale.setScalar(1.3);
+      }
+      hoveredPinIdRef.current = newId;
+    },
+    [isTouch],
+  );
+  const customThreeObject = useCallback(
+    (d: any) => {
+      const m = makePushpin({
+        color: COLORS[d.mediaType as MediaType],
+        regional: d.location.regional,
+        touch: isTouch,
+      });
+      pinMeshesRef.current.set(d.id, m);
+      return m;
+    },
+    [isTouch],
+  );
+  const customThreeObjectUpdate = useCallback((obj: any, d: any) => {
+    if (!globeRef.current) return;
+    const surf = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, 0);
+    obj.position.set(surf.x, surf.y, surf.z);
+    // After lookAt + rotateX(-90°), local +Y points radially outward — matching
+    // the pushpin geometry built from y=0 (surface) upward.
+    obj.lookAt(0, 0, 0);
+    obj.rotateX(-Math.PI / 2);
+  }, []);
+  const ringColor = useCallback(() => (t: number) => `rgba(255, 59, 59, ${1 - t})`, []);
 
   return (
     <>
@@ -402,80 +438,26 @@ export default function GlobeApp({ records }: Props) {
              the customLayer group below. The hit volume sits roughly where the
              bead is, so clicking the bead always registers. */
           pointsData={points}
-          pointLat={(d: any) => d.location.lat}
-          pointLng={(d: any) => d.location.lng}
-          pointAltitude={(d: any) =>
-            pushpinAltitude({ regional: d.location.regional, touch: isTouch })
-          }
-          pointRadius={(d: any) => {
-            // Generous invisible hit-volume — ~2x the bead — so hovering/tapping
-            // near a pin registers without pixel-perfect aim. It's transparent,
-            // so the bigger target doesn't change anything visually. Kept
-            // moderate so dense clusters (e.g. Hormuz ×5) don't mis-target.
-            const base =
-              (d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * 2.0;
-            return isTouch ? base * PUSHPIN.touchScale : base;
-          }}
+          pointLat={pointLat}
+          pointLng={pointLng}
+          pointAltitude={pointAltitude}
+          pointRadius={pointRadius}
           pointResolution={12}
           pointColor={() => "rgba(0,0,0,0)"}
-          /* Hover tooltip — desktop only. On touch we show our own
-             touch-preview overlay instead, to avoid the doubled-tooltip bug. */
-          pointLabel={(d: any) =>
-            isTouch
-              ? ""
-              : `<div class="pin-tooltip">
-                  <div class="loc">${escapeHtml(d.location.name)}</div>
-                  <div class="ttl">${escapeHtml(truncate(d.title, 60))}</div>
-                  <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}</div>
-                </div>`
-          }
+          pointLabel={pointLabel}
           onPointClick={onPointClick}
-          /* Subtle "jump": grow the hovered pin a touch (like the Moon pins). */
-          onPointHover={(point: any) => {
-            const newId: string | null = point?.id ?? null;
-            const oldId = hoveredPinIdRef.current;
-            if (newId === oldId) return;
-            if (oldId) {
-              const om = pinMeshesRef.current.get(oldId);
-              if (om) om.scale.setScalar(1);
-            }
-            if (newId) {
-              const nm = pinMeshesRef.current.get(newId);
-              if (nm) nm.scale.setScalar(1.3);
-            }
-            hoveredPinIdRef.current = newId;
-          }}
+          onPointHover={onPointHover}
           /* The visible pushpin — a customLayer group (chrome needle + glossy
              colored bead). Built once with the right dimensions; the update
              function only positions and orients it so local +Y points radially
              outward from the surface. */
           customLayerData={points}
-          customThreeObject={(d: any) => {
-            const m = makePushpin({
-              color: COLORS[d.mediaType as MediaType],
-              regional: d.location.regional,
-              touch: isTouch,
-            });
-            pinMeshesRef.current.set(d.id, m);
-            return m;
-          }}
-          customThreeObjectUpdate={(obj: any, d: any) => {
-            if (!globeRef.current) return;
-            const surf = (globeRef.current as any).getCoords(
-              d.location.lat,
-              d.location.lng,
-              0,
-            );
-            obj.position.set(surf.x, surf.y, surf.z);
-            // After lookAt + rotateX(-90°), local +Y points radially outward —
-            // matching the pushpin geometry built from y=0 (surface) upward.
-            obj.lookAt(0, 0, 0);
-            obj.rotateX(-Math.PI / 2);
-          }}
+          customThreeObject={customThreeObject}
+          customThreeObjectUpdate={customThreeObjectUpdate}
           ringsData={rings}
-          ringLat={(d: any) => d.location.lat}
-          ringLng={(d: any) => d.location.lng}
-          ringColor={() => (t: number) => `rgba(255, 59, 59, ${1 - t})`}
+          ringLat={pointLat}
+          ringLng={pointLng}
+          ringColor={ringColor}
           ringMaxRadius={3.5}
           ringPropagationSpeed={2.4}
           ringRepeatPeriod={1400}
@@ -495,26 +477,7 @@ export default function GlobeApp({ records }: Props) {
         )}
       </div>
 
-      {/* mobile single-tap preview (tap again to open) */}
-      {touchPreview && (
-        <TouchPreview
-          record={touchPreview.rec}
-          x={touchPreview.x}
-          y={touchPreview.y}
-          onConfirm={() => {
-            const r = touchPreview.rec;
-            setTouchPreview(null);
-            if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-            openLocationModal(r);
-          }}
-          onDismiss={() => {
-            setTouchPreview(null);
-            if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
-          }}
-        />
-      )}
-
-      {/* modal */}
+      {/* modal — bottom sheet on mobile, left-docked panel on desktop */}
       {modalRecords && (
         <RecordModal records={modalRecords} onClose={closeModalPreservingView} closeLabel="BACK TO GLOBE" />
       )}
@@ -529,141 +492,6 @@ export default function GlobeApp({ records }: Props) {
         />
       )}
     </>
-  );
-}
-
-interface TouchPreviewProps {
-  record: Record;
-  x: number;
-  y: number;
-  onConfirm: () => void;
-  onDismiss: () => void;
-}
-
-function TouchPreview({ record: r, x, y, onConfirm, onDismiss }: TouchPreviewProps) {
-  // clamp position so the bubble doesn't fall off-screen
-  const margin = 12;
-  const bubbleW = 240;
-  const bubbleH = 120;
-  const cx = Math.min(Math.max(x, bubbleW / 2 + margin), window.innerWidth - bubbleW / 2 - margin);
-  const cy = Math.max(y - 16, bubbleH + margin);
-
-  return (
-    <div
-      className={`touch-preview ${r.mediaType}`}
-      style={{ left: cx, top: cy }}
-      onClick={onConfirm}
-    >
-      <div className="touch-preview-loc">⊙ {r.location?.name}</div>
-      <div className="touch-preview-title">{truncate(r.title, 80)}</div>
-      <div className="touch-preview-meta">
-        {r.agency}
-        {r.year ? ` · ${r.year}` : ""}
-      </div>
-      <div className="touch-preview-hint">TAP AGAIN TO OPEN ▸</div>
-      <button
-        className="touch-preview-close"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDismiss();
-        }}
-        aria-label="Dismiss"
-      >
-        ✕
-      </button>
-
-      <style>{`
-        .touch-preview {
-          position: fixed;
-          width: 240px;
-          background: rgba(4,6,11,.95);
-          border: 1px solid var(--color-hud);
-          border-radius: 4px;
-          padding: 10px 12px 10px;
-          color: #e8edf3;
-          font-family: var(--font-mono);
-          font-size: 11px;
-          z-index: 35;
-          backdrop-filter: blur(8px);
-          box-shadow:
-            0 0 18px rgba(106,255,200,.35),
-            0 8px 24px rgba(0,0,0,.6);
-          transform: translate(-50%, -100%);
-          cursor: pointer;
-          animation: touch-preview-in .15s ease-out;
-        }
-        @keyframes touch-preview-in {
-          from { opacity: 0; transform: translate(-50%, calc(-100% + 8px)); }
-          to   { opacity: 1; transform: translate(-50%, -100%); }
-        }
-        .touch-preview.vid { border-color: var(--color-vid); box-shadow: 0 0 18px rgba(255,59,59,.4), 0 8px 24px rgba(0,0,0,.6); }
-        .touch-preview.img { border-color: var(--color-img); box-shadow: 0 0 18px rgba(90,215,255,.4), 0 8px 24px rgba(0,0,0,.6); }
-        .touch-preview.pdf { border-color: var(--color-pdf); box-shadow: 0 0 18px rgba(255,200,112,.35), 0 8px 24px rgba(0,0,0,.6); }
-        /* little arrow pointing at the pin below */
-        .touch-preview::after {
-          content: '';
-          position: absolute;
-          left: 50%; bottom: -7px;
-          transform: translateX(-50%) rotate(45deg);
-          width: 12px; height: 12px;
-          background: rgba(4,6,11,.95);
-          border-right: 1px solid currentColor;
-          border-bottom: 1px solid currentColor;
-          color: var(--color-hud);
-        }
-        .touch-preview.vid::after { color: var(--color-vid); }
-        .touch-preview.img::after { color: var(--color-img); }
-        .touch-preview.pdf::after { color: var(--color-pdf); }
-        .touch-preview-loc {
-          font-size: 9px;
-          letter-spacing: .2em;
-          text-transform: uppercase;
-          color: var(--color-hud);
-          margin-bottom: 4px;
-          padding-right: 18px;
-        }
-        .touch-preview.vid .touch-preview-loc { color: var(--color-vid); }
-        .touch-preview.img .touch-preview-loc { color: var(--color-img); }
-        .touch-preview.pdf .touch-preview-loc { color: var(--color-pdf); }
-        .touch-preview-title {
-          font-size: 12px;
-          line-height: 1.35;
-          font-weight: 600;
-          margin-bottom: 4px;
-          padding-right: 18px;
-        }
-        .touch-preview-meta {
-          font-size: 9px;
-          letter-spacing: .12em;
-          text-transform: uppercase;
-          color: rgba(255,255,255,.55);
-          margin-bottom: 8px;
-        }
-        .touch-preview-hint {
-          font-size: 9px;
-          letter-spacing: .2em;
-          color: var(--color-hud);
-          padding-top: 6px;
-          border-top: 1px dashed rgba(106,255,200,.2);
-        }
-        .touch-preview.vid .touch-preview-hint { color: var(--color-vid); border-top-color: rgba(255,59,59,.25); }
-        .touch-preview.img .touch-preview-hint { color: var(--color-img); border-top-color: rgba(90,215,255,.25); }
-        .touch-preview.pdf .touch-preview-hint { color: var(--color-pdf); border-top-color: rgba(255,200,112,.22); }
-        .touch-preview-close {
-          position: absolute;
-          top: 6px; right: 6px;
-          width: 22px; height: 22px;
-          border: 0;
-          background: transparent;
-          color: rgba(255,255,255,.5);
-          font-family: var(--font-mono);
-          font-size: 11px;
-          cursor: pointer;
-          border-radius: 2px;
-        }
-        .touch-preview-close:hover { color: #fff; background: rgba(255,255,255,.08); }
-      `}</style>
-    </div>
   );
 }
 

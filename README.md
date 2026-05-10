@@ -14,7 +14,7 @@ I wanted to see a more visual version of all this — *okay, but where are the s
 
 It's a rotating 3D Earth. Pins are colour-coded by file type (red = video, cyan = photo, gold = document). Click a pin — the camera flies in, a panel slides out, you read the report, you decide for yourself. There's a `★ HALL OF FAME` chip for the ten genuinely unhinged ones — Mexico's Congress hearing testimony about "two alleged alien corpses"; an FBI Lab sketch of a bronze ellipsoid "materializing out of a bright light"; a 747 crew at 41,000 feet photographing something doing corkscrews and 90-degree turns. The Apollo records live on an actual little Moon orbiting the Earth, because putting a pin for a lunar photo in the middle of the Atlantic was, frankly, embarrassing.
 
-And yes, occasionally a small silver flying saucer drifts past. If you put your cursor near it, it leaves. We don't make the rules.
+And yes, every so often a few small silver flying saucers drift past. Get your cursor near one and it bolts — but you can run it down if you're quick. We don't make the rules.
 
 Everything links back to the original government URLs. Nothing is altered. We just gave it a budget.
 
@@ -66,7 +66,7 @@ ufos-et-phone-home/
 ├── src/
 │   ├── components/          # GlobeApp, RecordModal, QueuePanel, PinRail, HallOfFameOverlay,
 │   │                        # FloatingUfos, LunarMoon, TransmissionModal, Hud, RecordCard, …
-│   ├── lib/                 # pushpin geometry, city-light shimmer shader, ufo pool, featured.json resolver
+│   ├── lib/                 # pushpin geometry, city-light shimmer shader, ufo pool, featured.json resolver, mobile bottom-sheet logic
 │   ├── data/                # generated records.json + curated featured.json
 │   ├── layouts/             # Base, PageLayout
 │   ├── pages/               # /, /gallery, /videos, /photos, /files, /no-location, /about
