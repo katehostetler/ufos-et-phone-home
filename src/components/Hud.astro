@@ -20,7 +20,8 @@
     height: 56px;
     display: flex;
     align-items: center;
-    padding: 0 34px;
+    /* extra right padding so the DECLASSIFIED stamp clears the top-right corner bracket */
+    padding: 0 52px 0 34px;
     background: linear-gradient(180deg, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 100%);
     border-bottom: 1px solid var(--color-line);
     gap: 18px;
@@ -115,7 +116,7 @@
   @media (max-width: 1024px) {
     .top {
       gap: 12px;
-      padding: 0 20px;
+      padding: 0 38px 0 20px;
     }
     .logo-sub { font-size: 10px; letter-spacing: .25em; }
     .clock { margin-left: 0; }
@@ -128,7 +129,7 @@
   @media (max-width: 767px) {
     .top {
       height: 48px;
-      padding: 0 14px 0 22px;
+      padding: 0 28px 0 22px;
       gap: 6px;
     }
     .brand { gap: 5px; flex-shrink: 1; min-width: 0; }

@@ -14,12 +14,17 @@ const { total } = Astro.props;
     top: 110px;
     background: rgba(8,12,20,.6);
     backdrop-filter: blur(4px);
-    border: 1px solid rgba(255,59,59,.4);
+    /* HUD green — was red, which clashed sitting just under the red DECLASSIFIED stamp */
+    border: 1px solid rgba(106,255,200,.4);
     padding: 8px 12px;
     font-size: 10px;
     letter-spacing: .12em;
-    color: var(--color-vid);
+    color: var(--color-hud);
     z-index: 6;
+  }
+  .ticker .blink-dot {
+    background: var(--color-hud);
+    box-shadow: 0 0 8px var(--color-hud);
   }
 
   @media (max-width: 1024px) {

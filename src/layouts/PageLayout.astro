@@ -8,8 +8,10 @@ import type { Record } from "@/types/record";
 interface Props {
   title: string;
   subtitle?: string;
+  /** Hide the "← BACK TO GLOBE" chip (the about page is its own thing, keeps it uncluttered). */
+  hideBack?: boolean;
 }
-const { title, subtitle } = Astro.props;
+const { title, subtitle, hideBack = false } = Astro.props;
 const allRecords = records as Record[];
 ---
 
@@ -18,10 +20,12 @@ const allRecords = records as Record[];
 
   <main class="page">
     <header class="page-head">
-      <a href="/" class="back-to-globe" aria-label="Back to globe">
-        <span class="btg-arrow">←</span>
-        <span class="btg-label">BACK TO GLOBE</span>
-      </a>
+      {!hideBack && (
+        <a href="/" class="back-to-globe" aria-label="Back to globe">
+          <span class="btg-arrow">←</span>
+          <span class="btg-label">BACK TO GLOBE</span>
+        </a>
+      )}
       <h1 class="page-title">{title}</h1>
       {subtitle && <p class="page-subtitle">{subtitle}</p>}
     </header>

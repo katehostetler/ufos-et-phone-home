@@ -55,17 +55,24 @@ export function makePushpin(opts: PushpinOpts): THREE.Group {
   g.add(needle);
 
   const color = new THREE.Color(opts.color);
+  const defaultEmissive = color.clone().multiplyScalar(0.14); // keep pins legible on the night side
   const bead = new THREE.Mesh(
     new THREE.SphereGeometry(beadR, 22, 22),
     new THREE.MeshPhongMaterial({
-      color,
+      color: color.clone(),
       shininess: 80,
       specular: new THREE.Color(0xffffff),
-      emissive: color.clone().multiplyScalar(0.14), // keep pins legible on the night side
+      emissive: defaultEmissive.clone(),
     }),
   );
   bead.position.y = len + beadR * 0.1; // perch the bead just above the needle's tip
   g.add(bead);
+
+  // Stash the bead + its default look so callers (the PinRail "you're being
+  // flown here" highlight) can recolour it and put it back.
+  g.userData.bead = bead;
+  g.userData.defaultColor = color.clone();
+  g.userData.defaultEmissive = defaultEmissive.clone();
 
   return g;
 }

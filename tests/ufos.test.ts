@@ -32,15 +32,26 @@ describe("UFO_POOL", () => {
   it("all entries have valid structure", () => {
     for (const spec of UFO_POOL) {
       expect(["saucer", "tictac"]).toContain(spec.kind);
+      expect(["small", "large"]).toContain(spec.sizeClass);
       expect(spec.color).toMatch(/^#[0-9a-fA-F]{6}$/);
       expect(spec.glowIntensity).toBeGreaterThan(0);
       expect(spec.glowIntensity).toBeLessThanOrEqual(1);
       expect(spec.scale).toBeGreaterThan(0);
+      expect(spec.driftSpeed).toBeGreaterThan(0);
       expect(spec.latRange[0]).toBeLessThan(spec.latRange[1]);
       expect(spec.lngRange[0]).toBeLessThan(spec.lngRange[1]);
       expect(spec.altitude).toBeGreaterThan(0);
       expect(spec.lifespan).toBeGreaterThan(0);
     }
+  });
+
+  it("has both size classes; every small craft is smaller AND faster than every large one", () => {
+    const small = UFO_POOL.filter((s) => s.sizeClass === "small");
+    const large = UFO_POOL.filter((s) => s.sizeClass === "large");
+    expect(small.length).toBeGreaterThanOrEqual(2);
+    expect(large.length).toBeGreaterThanOrEqual(2);
+    expect(Math.max(...small.map((s) => s.scale))).toBeLessThan(Math.min(...large.map((s) => s.scale)));
+    expect(Math.min(...small.map((s) => s.driftSpeed))).toBeGreaterThan(Math.max(...large.map((s) => s.driftSpeed)));
   });
 
   it("every entry is a unique colour (so two craft on screen differ)", () => {
@@ -164,12 +175,34 @@ describe("makeSpawnManager", () => {
     expect(mgr.getActive().size).toBe(0);
   });
 
-  it("spawns on the first tick", () => {
+  it("fills straight up to the minActive floor on the first tick", () => {
     const rnd = makeLcg(5);
-    const mgr = makeSpawnManager({ cap: CAP, now: 0, rnd });
+    const mgr = makeSpawnManager({ cap: CAP, now: 0, rnd }); // minActive defaults to 2
     const delta = mgr.tick(0);
-    expect(delta.spawned.length).toBe(1);
-    expect(mgr.getActive().size).toBe(1);
+    expect(delta.spawned.length).toBe(2);
+    expect(mgr.getActive().size).toBe(2);
+  });
+
+  it("always keeps at least minActive craft alive — refills immediately when one expires", () => {
+    const rnd = makeLcg(8);
+    const mgr = makeSpawnManager({ cap: 4, minActive: 2, now: 0, rnd, spawnIntervalMs: 1000 });
+    let everBelowFloor = false;
+    for (let t = 0; t <= 60_000; t += 50) {
+      mgr.tick(t);
+      if (mgr.getActive().size < 2) everBelowFloor = true;
+      expect(mgr.getActive().size).toBeLessThanOrEqual(4);
+    }
+    expect(everBelowFloor).toBe(false);
+  });
+
+  it("the two floor craft are a different size class (small + large), so they're visibly different", () => {
+    const rnd = makeLcg(21);
+    const mgr = makeSpawnManager({ cap: 2, minActive: 2, now: 0, rnd, spawnIntervalMs: 5000 });
+    for (let t = 0; t <= 80_000; t += 100) {
+      mgr.tick(t);
+      const classes = [...mgr.getActive().values()].map((u) => u.spec.sizeClass);
+      if (classes.length === 2) expect(new Set(classes).size).toBe(2);
+    }
   });
 
   it("NEVER exceeds cap of 3 over a simulated 10 seconds of frames", () => {
@@ -218,11 +251,11 @@ describe("makeSpawnManager", () => {
     const rnd = makeLcg(77);
     const mgr = makeSpawnManager({ cap: 3, now: 0, rnd, spawnIntervalMs: 3000 });
 
-    // Tick at t=0 (should spawn)
+    // Tick at t=0 — fills up to the floor (2) immediately, no extra yet
     const d1 = mgr.tick(0);
-    expect(d1.spawned.length).toBe(1);
+    expect(d1.spawned.length).toBe(2);
 
-    // Tick at t=1000 — too soon, no new spawn
+    // Tick at t=1000 — above the floor, cooldown not elapsed → no new spawn
     const d2 = mgr.tick(1000);
     expect(d2.spawned.length).toBe(0);
 
@@ -230,7 +263,7 @@ describe("makeSpawnManager", () => {
     const d3 = mgr.tick(2999);
     expect(d3.spawned.length).toBe(0);
 
-    // Tick at t=3000 — now eligible
+    // Tick at t=3000 — cooldown elapsed → one extra above the floor
     const d4 = mgr.tick(3000);
     expect(d4.spawned.length).toBe(1);
   });

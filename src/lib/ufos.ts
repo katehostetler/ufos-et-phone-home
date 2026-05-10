@@ -23,13 +23,19 @@
  */
 export type UfoKind = "saucer" | "tictac";
 
+/** "small" craft are noticeably smaller AND faster; "large" are bigger and slower. */
+export type UfoSizeClass = "small" | "large";
+
 export interface UfoSpec {
   kind: UfoKind;
   /** body color hex (metallic silver / steel / chrome) */
   color: string;
+  /** size bucket — the spawner pairs a small craft with a large one so the
+   *  two always on screen are clearly different sizes */
+  sizeClass: UfoSizeClass;
   /** 0-1 base opacity of the emissive rim/glow accents */
   glowIntensity: number;
-  /** overall scale multiplier so individuals differ a bit in size */
+  /** overall scale multiplier — small ~0.6, large ~1.5 */
   scale: number;
   /** lat range for spawning: [min, max] */
   latRange: [number, number];
@@ -39,112 +45,61 @@ export interface UfoSpec {
   altitude: number;
   /** seconds the UFO stays alive before despawning */
   lifespan: number;
-  /** radians per second for saucer spin / tic-tac wobble */
+  /** radians per second for saucer spin */
   spinSpeed: number;
-  /** drift speed in degrees/second */
+  /** drift speed in degrees/second — small craft zip, large craft cruise */
   driftSpeed: number;
 }
 
 export const UFO_POOL: UfoSpec[] = [
-  // All flying saucers, in dark-silver / gunmetal tones — the "pill" tic-tac
-  // didn't read as a spaceship, and pale near-white bodies wash out on small
-  // screens. `driftSpeed` is the baseline cruise speed; the renderer makes
-  // them wander sporadically and jet away if the cursor gets near.
+  // All flying saucers, in dark-silver / gunmetal tones. Two size classes —
+  // small craft are little and quick; large craft are big and slow. The spawn
+  // manager keeps at least one of each up, so there are always ≥2 on screen at
+  // visibly different sizes moving at visibly different speeds. `driftSpeed` is
+  // the baseline cruise; the renderer adds sporadic wander + a short flee-dart.
+
+  // ── small + fast ──────────────────────────────────────────────────────────
   {
-    kind: "saucer",
-    color: "#a9b3c0", // brushed silver
-    glowIntensity: 0.55,
-    scale: 1.0,
-    latRange: [-45, 45],
-    lngRange: [-180, 180],
-    altitude: 0.22,
-    lifespan: 15,
-    spinSpeed: 0.9,
-    driftSpeed: 3.0,
+    kind: "saucer", color: "#b4bcc6", sizeClass: "small", // bright aluminum scout
+    glowIntensity: 0.6, scale: 0.78, latRange: [-50, 50], lngRange: [-180, 180],
+    altitude: 0.24, lifespan: 14, spinSpeed: 1.3, driftSpeed: 4.6,
   },
   {
-    kind: "saucer",
-    color: "#8a94a2", // gunmetal / titanium
-    glowIntensity: 0.5,
-    scale: 1.12,
-    latRange: [-42, 42],
-    lngRange: [-180, 180],
-    altitude: 0.21,
-    lifespan: 16,
-    spinSpeed: 0.7,
-    driftSpeed: 2.7,
+    kind: "saucer", color: "#a9b3c0", sizeClass: "small", // brushed-silver darter
+    glowIntensity: 0.58, scale: 0.6, latRange: [-52, 52], lngRange: [-180, 180],
+    altitude: 0.26, lifespan: 13, spinSpeed: 1.5, driftSpeed: 5.6,
   },
   {
-    kind: "saucer",
-    color: "#6f7884", // dark steel
-    glowIntensity: 0.45,
-    scale: 0.92,
-    latRange: [-50, 50],
-    lngRange: [-180, 180],
-    altitude: 0.24,
-    lifespan: 13,
-    spinSpeed: 1.15,
-    driftSpeed: 3.4,
+    kind: "saucer", color: "#9ba5b2", sizeClass: "small", // pewter probe
+    glowIntensity: 0.55, scale: 0.7, latRange: [-48, 48], lngRange: [-180, 180],
+    altitude: 0.23, lifespan: 14, spinSpeed: 1.4, driftSpeed: 5.0,
   },
   {
-    kind: "saucer",
-    color: "#9ba5b2", // pewter-silver
-    glowIntensity: 0.5,
-    scale: 1.0,
-    latRange: [-38, 38],
-    lngRange: [-180, 180],
-    altitude: 0.26,
-    lifespan: 14,
-    spinSpeed: 0.85,
-    driftSpeed: 3.1,
+    kind: "saucer", color: "#7e8893", sizeClass: "small", // slate-steel zipper
+    glowIntensity: 0.52, scale: 0.66, latRange: [-50, 50], lngRange: [-180, 180],
+    altitude: 0.25, lifespan: 12, spinSpeed: 1.6, driftSpeed: 6.0,
+  },
+
+  // ── large + slow ──────────────────────────────────────────────────────────
+  {
+    kind: "saucer", color: "#8a94a2", sizeClass: "large", // gunmetal mothership
+    glowIntensity: 0.5, scale: 1.5, latRange: [-40, 40], lngRange: [-180, 180],
+    altitude: 0.21, lifespan: 17, spinSpeed: 0.6, driftSpeed: 2.0,
   },
   {
-    kind: "saucer",
-    color: "#5f6874", // charcoal silver
-    glowIntensity: 0.4,
-    scale: 1.06,
-    latRange: [-35, 35],
-    lngRange: [-180, 180],
-    altitude: 0.23,
-    lifespan: 13,
-    spinSpeed: 1.0,
-    driftSpeed: 3.6,
+    kind: "saucer", color: "#6f7884", sizeClass: "large", // dark-steel cruiser
+    glowIntensity: 0.46, scale: 1.35, latRange: [-42, 42], lngRange: [-180, 180],
+    altitude: 0.24, lifespan: 16, spinSpeed: 0.7, driftSpeed: 2.4,
   },
   {
-    kind: "saucer",
-    color: "#b4bcc6", // light brushed aluminum
-    glowIntensity: 0.55,
-    scale: 0.96,
-    latRange: [-48, 48],
-    lngRange: [-180, 180],
-    altitude: 0.25,
-    lifespan: 15,
-    spinSpeed: 0.95,
-    driftSpeed: 3.2,
+    kind: "saucer", color: "#5f6874", sizeClass: "large", // charcoal hauler
+    glowIntensity: 0.42, scale: 1.65, latRange: [-36, 36], lngRange: [-180, 180],
+    altitude: 0.22, lifespan: 18, spinSpeed: 0.5, driftSpeed: 1.7,
   },
   {
-    kind: "saucer",
-    color: "#7e8893", // slate steel
-    glowIntensity: 0.48,
-    scale: 1.08,
-    latRange: [-40, 40],
-    lngRange: [-180, 180],
-    altitude: 0.22,
-    lifespan: 14,
-    spinSpeed: 0.8,
-    driftSpeed: 2.9,
-  },
-  {
-    kind: "saucer",
-    color: "#646c78", // graphite
-    glowIntensity: 0.42,
-    scale: 0.9,
-    latRange: [-46, 46],
-    lngRange: [-180, 180],
-    altitude: 0.27,
-    lifespan: 12,
-    spinSpeed: 1.2,
-    driftSpeed: 3.5,
+    kind: "saucer", color: "#646c78", sizeClass: "large", // graphite carrier
+    glowIntensity: 0.44, scale: 1.42, latRange: [-44, 44], lngRange: [-180, 180],
+    altitude: 0.27, lifespan: 16, spinSpeed: 0.65, driftSpeed: 2.2,
   },
 ];
 
@@ -189,20 +144,22 @@ export interface UfoSpawnSnapshot {
 }
 
 /**
- * Pick a random UfoSpec, optionally excluding specs whose `color` is already
- * in use (so two craft on screen at once never look identical), and return a
- * spawn-time snapshot with randomized initial lat/lng + drift heading.
+ * Pick a random UfoSpec and return a spawn-time snapshot (randomized lat/lng +
+ * drift heading). Tries hardest to honour BOTH exclusions — different colour AND
+ * a different size class than what's already on screen (so the pair on screen is
+ * a distinct big-slow + small-fast); falls back to colour-only, then to any.
  */
 export function randomUfoSpec(
   rnd: RndFn = Math.random,
   excludeColors: ReadonlySet<string> = new Set(),
+  excludeSizeClasses: ReadonlySet<string> = new Set(),
 ): UfoSpawnSnapshot {
-  const candidates =
-    excludeColors.size > 0
-      ? UFO_POOL.filter((s) => !excludeColors.has(s.color))
-      : UFO_POOL;
-  const pool = candidates.length > 0 ? candidates : UFO_POOL;
-  const spec = pool[Math.floor(rnd() * pool.length)];
+  let candidates = UFO_POOL.filter(
+    (s) => !excludeColors.has(s.color) && !excludeSizeClasses.has(s.sizeClass),
+  );
+  if (candidates.length === 0) candidates = UFO_POOL.filter((s) => !excludeColors.has(s.color));
+  if (candidates.length === 0) candidates = UFO_POOL;
+  const spec = candidates[Math.floor(rnd() * candidates.length)];
   const lat = spec.latRange[0] + rnd() * (spec.latRange[1] - spec.latRange[0]);
   const lng = spec.lngRange[0] + rnd() * (spec.lngRange[1] - spec.lngRange[0]);
   const angle = rnd() * Math.PI * 2;
@@ -236,11 +193,13 @@ export interface SpawnManager {
 interface SpawnManagerOptions {
   /** Maximum concurrent UFOs (hard cap). Defaults to 4. */
   cap?: number;
+  /** Floor — always keep at least this many alive (refilled immediately, no cooldown). Defaults to 2. */
+  minActive?: number;
   /** Initial timestamp in ms */
   now: number;
   /** Injected rng for determinism in tests */
   rnd?: RndFn;
-  /** Minimum ms between spawn attempts */
+  /** Minimum ms between spawn attempts above the floor */
   spawnIntervalMs?: number;
 }
 
@@ -248,12 +207,27 @@ let _nextId = 1;
 
 export function makeSpawnManager({
   cap = 4,
+  minActive = 2,
   now,
   rnd = Math.random,
   spawnIntervalMs = 8000,
 }: SpawnManagerOptions): SpawnManager {
+  const floor = Math.min(minActive, cap);
   const active = new Map<number, ActiveUfo>();
   let lastSpawnAttempt = now - spawnIntervalMs; // allow immediate first spawn
+
+  function spawnOne(nowMs: number): ActiveUfo {
+    const usedColors = new Set<string>();
+    const usedSizeClasses = new Set<string>();
+    for (const u of active.values()) {
+      usedColors.add(u.spec.color);
+      usedSizeClasses.add(u.spec.sizeClass);
+    }
+    const { spec, lat, lng, driftLat, driftLng } = randomUfoSpec(rnd, usedColors, usedSizeClasses);
+    const ufo: ActiveUfo = { id: _nextId++, spec, lat, lng, driftLat, driftLng, spawnedAt: nowMs };
+    active.set(ufo.id, ufo);
+    return ufo;
+  }
 
   function tick(nowMs: number): SpawnDelta {
     const spawned: ActiveUfo[] = [];
@@ -266,14 +240,16 @@ export function makeSpawnManager({
       }
     }
 
+    // Always refill straight back up to the floor — no cooldown — so there are
+    // never fewer than `minActive` craft on screen.
+    while (active.size < floor) {
+      spawned.push(spawnOne(nowMs));
+      lastSpawnAttempt = nowMs;
+    }
+    // Above the floor: trickle in one more per cooldown, up to the hard cap.
     if (active.size < cap && nowMs - lastSpawnAttempt >= spawnIntervalMs) {
       lastSpawnAttempt = nowMs;
-      const inUse = new Set<string>();
-      for (const u of active.values()) inUse.add(u.spec.color);
-      const { spec, lat, lng, driftLat, driftLng } = randomUfoSpec(rnd, inUse);
-      const ufo: ActiveUfo = { id: _nextId++, spec, lat, lng, driftLat, driftLng, spawnedAt: nowMs };
-      active.set(ufo.id, ufo);
-      spawned.push(ufo);
+      spawned.push(spawnOne(nowMs));
     }
 
     return { spawned, despawned };

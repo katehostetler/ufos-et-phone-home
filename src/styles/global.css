@@ -179,13 +179,24 @@ body::after {
   pointer-events: none;
   max-width: 280px;
 }
+/* Outline the hover tooltip in the record's file-type colour */
+.pin-tooltip.vid { border-color: var(--color-vid); box-shadow: 0 0 14px rgba(255,59,59,.4),  0 4px 16px rgba(0,0,0,.6); }
+.pin-tooltip.img { border-color: var(--color-img); box-shadow: 0 0 14px rgba(90,215,255,.4), 0 4px 16px rgba(0,0,0,.6); }
+.pin-tooltip.pdf { border-color: var(--color-pdf); box-shadow: 0 0 14px rgba(255,200,112,.4), 0 4px 16px rgba(0,0,0,.6); }
 .pin-tooltip .loc {
   color: var(--color-hud);
   font-size: 9px;
   letter-spacing: .2em;
   text-transform: uppercase;
   margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
+.pin-tooltip.vid .loc { color: var(--color-vid); }
+.pin-tooltip.img .loc { color: var(--color-img); }
+.pin-tooltip.pdf .loc { color: var(--color-pdf); }
+.pin-tooltip .pt-icon { font-size: 12px; line-height: 1; }
 .pin-tooltip .ttl { font-weight: 600; }
 .pin-tooltip .meta { font-size: 9px; opacity: .55; margin-top: 3px; }
 
@@ -611,8 +622,9 @@ body::after {
 .pin-rail-list {
   list-style: none;
   margin: 0;
-  padding: 14px 12px 60vh;   /* big bottom pad so the last card can reach the centre band */
-  padding-top: 30vh;          /* and top pad so the first card can too */
+  /* small top pad (no big void), generous bottom pad so the last card can still
+     scroll up to the "active" band near the top of the rail */
+  padding: 14px 12px 38vh;
   overflow-y: auto;
   flex: 1;
   scrollbar-width: thin;

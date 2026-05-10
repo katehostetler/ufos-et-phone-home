@@ -17,6 +17,18 @@ const COLORS: Record<MediaType, string> = {
   pdf: "#ffc870",
 };
 
+// Glyphs for the hover tooltip (mirrors the dock chips: video ▶, photo ⊡, document ▤)
+const PIN_GLYPHS: Record<MediaType, string> = {
+  vid: "▶",
+  img: "⊡",
+  pdf: "▤",
+};
+
+/** Highlight colour for the pin the PinRail is currently flying you to — a clean
+ *  white beacon, deliberately not one of the media-type pin colours. */
+const PIN_HIGHLIGHT = 0xffffff;
+const PIN_HIGHLIGHT_EMISSIVE = 0x9aa0aa;
+
 type QueueType = MediaType | "noloc";
 
 interface Props {
@@ -35,9 +47,13 @@ export default function GlobeApp({ records }: Props) {
   // Saved camera position so we can restore the user's view after they close
   // a modal opened by clicking a pin.
   const savedPovRef = useRef<{ lat: number; lng: number; altitude: number } | null>(null);
-  // pushpin meshes keyed by record id, so onPointHover can "jump" the hovered one
+  // pushpin meshes keyed by record id, so we can highlight the one the PinRail
+  // is currently flying you to
   const pinMeshesRef = useRef<Map<string, any>>(new Map());
-  const hoveredPinIdRef = useRef<string | null>(null);
+  const railHighlightedIdRef = useRef<string | null>(null);
+  // OrbitControls handle — kept on a ref so the moon-click handler can pause
+  // auto-rotation and modal-close can resume it.
+  const controlsRef = useRef<any>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -80,19 +96,63 @@ export default function GlobeApp({ records }: Props) {
     return () => window.removeEventListener("open-record", onOpenRecord);
   }, [records]);
 
-  // when the queue's active record changes, fly the globe to its pin (if any)
-  const onQueueActiveChange = useCallback((rec: Record) => {
-    if (!rec.location || !globeRef.current) return;
-    if (rec.location.name === "Moon") {
-      // lunar record — pull the camera back so the orbiting Moon is in frame
-      globeRef.current.pointOfView({ altitude: 3.2 }, 900);
-      return;
+  // Highlight (white beacon + grown) the pushpin the PinRail / queue is currently
+  // flying you to, and restore the previously-highlighted one — so when several
+  // pins are clustered you can tell which one it just moved you to. Pass null to
+  // clear (e.g. when the rail closes).
+  const highlightPin = useCallback((id: string | null) => {
+    const prev = railHighlightedIdRef.current;
+    if (prev === id) return;
+    const restore = (mid: string) => {
+      const m = pinMeshesRef.current.get(mid);
+      if (!m) return;
+      m.scale.setScalar(1);
+      const bead = m.userData?.bead;
+      if (bead) {
+        bead.material.color.copy(m.userData.defaultColor);
+        bead.material.emissive.copy(m.userData.defaultEmissive);
+      }
+    };
+    if (prev) restore(prev);
+    railHighlightedIdRef.current = id;
+    if (id) {
+      const m = pinMeshesRef.current.get(id);
+      if (m) {
+        m.scale.setScalar(1.7);
+        const bead = m.userData?.bead;
+        if (bead) {
+          bead.material.color.setHex(PIN_HIGHLIGHT);
+          bead.material.emissive.setHex(PIN_HIGHLIGHT_EMISSIVE);
+        }
+      }
     }
-    globeRef.current.pointOfView(
-      { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
-      900,
-    );
   }, []);
+
+  // when the queue's active record changes, fly the globe to its pin (if any)
+  // and light that pin up so it's obvious which one you were moved to
+  const onQueueActiveChange = useCallback(
+    (rec: Record) => {
+      if (!rec.location || !globeRef.current) return;
+      if (rec.location.name === "Moon") {
+        // lunar record — pull the camera back so the orbiting Moon is in frame
+        globeRef.current.pointOfView({ altitude: 3.2 }, 900);
+        highlightPin(null); // lunar records aren't Earth pins
+        return;
+      }
+      globeRef.current.pointOfView(
+        { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
+        900,
+      );
+      highlightPin(rec.id);
+    },
+    [highlightPin],
+  );
+
+  // Clear the pin beacon whenever the PinRail closes (by ✕, by clicking the
+  // globe, or by toggling its chip off).
+  useEffect(() => {
+    if (!pinRailType) highlightPin(null);
+  }, [pinRailType, highlightPin]);
 
   // resize globe to container
   useEffect(() => {
@@ -115,6 +175,7 @@ export default function GlobeApp({ records }: Props) {
   useEffect(() => {
     if (!globeRef.current) return;
     const controls = globeRef.current.controls() as any;
+    controlsRef.current = controls;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 0.45;
     controls.enableDamping = true;
@@ -132,13 +193,16 @@ export default function GlobeApp({ records }: Props) {
     controls.addEventListener("end", onEnd);
     globeRef.current.pointOfView({ lat: 28, lng: 50, altitude: 2.4 }, 0);
 
-    // 3D starfield: two layers of points at different distances for depth.
-    // Stars are placed on a sphere far enough out that they always sit
-    // behind the globe, regardless of zoom.
+    // 3D starfield: three layers of points at different distances for parallax
+    // depth. They're rendered FIRST (renderOrder -1) with depthTest off, so the
+    // opaque globe always paints over them — i.e. stars only ever show in the
+    // black space *around* the globe, never on it, regardless of zoom. And
+    // sizeAttenuation is off, so they stay a fixed pixel size and never balloon
+    // into big squares when the camera moves.
     const scene = globeRef.current.scene();
     const stars: THREE.Points[] = [];
 
-    const makeStarLayer = (count: number, radius: number, size: number, opacity: number) => {
+    const makeStarLayer = (count: number, radius: number, sizePx: number, brightness: number) => {
       const positions = new Float32Array(count * 3);
       const colors = new Float32Array(count * 3);
       for (let i = 0; i < count; i++) {
@@ -154,49 +218,41 @@ export default function GlobeApp({ records }: Props) {
         positions[i * 3] = x * norm;
         positions[i * 3 + 1] = y * norm;
         positions[i * 3 + 2] = z * norm;
-        // subtle color variation: most white, a few warm/cool
+        // subtle colour variation: mostly white, a few warm/cool — scaled by the
+        // layer's brightness so the far layers read dimmer (opaque points, so we
+        // bake the "opacity" into the colour rather than blending).
         const tint = Math.random();
-        if (tint > 0.95) {
-          // warm star (red-ish)
-          colors[i * 3] = 1.0;
-          colors[i * 3 + 1] = 0.78;
-          colors[i * 3 + 2] = 0.65;
-        } else if (tint > 0.88) {
-          // cool blue
-          colors[i * 3] = 0.78;
-          colors[i * 3 + 1] = 0.85;
-          colors[i * 3 + 2] = 1.0;
-        } else {
-          // white with slight brightness variation
-          const b = 0.85 + Math.random() * 0.15;
-          colors[i * 3] = b;
-          colors[i * 3 + 1] = b;
-          colors[i * 3 + 2] = b;
-        }
+        let r: number, g: number, b: number;
+        if (tint > 0.95) { r = 1.0; g = 0.78; b = 0.65; }       // warm
+        else if (tint > 0.88) { r = 0.78; g = 0.85; b = 1.0; }  // cool
+        else { const k = 0.82 + Math.random() * 0.18; r = k; g = k; b = k; }
+        colors[i * 3] = r * brightness;
+        colors[i * 3 + 1] = g * brightness;
+        colors[i * 3 + 2] = b * brightness;
       }
       const geo = new THREE.BufferGeometry();
       geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
       geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
       const mat = new THREE.PointsMaterial({
-        size,
-        sizeAttenuation: true,
+        size: sizePx,
+        sizeAttenuation: false, // fixed pixel size — never balloons when zooming
         vertexColors: true,
-        transparent: true,
-        opacity,
+        transparent: false,
+        depthTest: false,
         depthWrite: false,
       });
       const points = new THREE.Points(geo, mat);
+      points.renderOrder = -1; // draw before the (opaque) globe so it paints over them
+      points.frustumCulled = false;
       scene.add(points);
       stars.push(points);
       return { geo, mat };
     };
 
-    // Globe is rendered at radius ~100 in scene units. Stars sit on a sphere
-    // outside the camera-far-clip-but-close-enough-to-be-visible distance.
     const layers = [
-      makeStarLayer(700, 380, 1.6, 0.95),  // bright near layer
-      makeStarLayer(1400, 480, 0.9, 0.65), // faint far layer (depth)
-      makeStarLayer(800, 560, 0.55, 0.4),  // distant haze
+      makeStarLayer(900, 600, 2.3, 1.0),   // bright near layer
+      makeStarLayer(1500, 1000, 1.5, 0.62), // medium
+      makeStarLayer(900, 1500, 1.0, 0.4),   // distant haze
     ];
 
     // Crisp up the earth texture: max anisotropic filtering keeps it sharp at
@@ -218,7 +274,7 @@ export default function GlobeApp({ records }: Props) {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let stopShimmer: (() => void) | null = null;
     if (!reduceMotion && globeMat) {
-      stopShimmer = applyCityLightShimmer(globeMat, { intensity: 0.5, rate: 1.2 });
+      stopShimmer = applyCityLightShimmer(globeMat, { intensity: 0.7, rate: 1.1 });
     }
 
     return () => {
@@ -277,6 +333,8 @@ export default function GlobeApp({ records }: Props) {
 
   const closeModalPreservingView = useCallback(() => {
     setModalRecords(null);
+    // Resume auto-rotation (the Moon click pauses it while you read its reports).
+    if (controlsRef.current) controlsRef.current.autoRotate = true;
     // Restore the camera position the user was at before they clicked.
     if (globeRef.current && savedPovRef.current) {
       (globeRef.current as any).pointOfView(savedPovRef.current, 700);
@@ -319,36 +377,19 @@ export default function GlobeApp({ records }: Props) {
     (d: any) =>
       // Hover tooltip — desktop (fine-pointer) only. Touch devices get the
       // bottom-sheet preview instead, so suppress the floating label there.
+      // Outlined in the file-type colour with the file-type glyph.
       isTouch
         ? ""
-        : `<div class="pin-tooltip">
-            <div class="loc">${escapeHtml(d.location.name)}</div>
+        : `<div class="pin-tooltip ${d.mediaType}">
+            <div class="loc"><span class="pt-icon">${PIN_GLYPHS[d.mediaType as MediaType] ?? ""}</span>${escapeHtml(d.location.name)}</div>
             <div class="ttl">${escapeHtml(truncate(d.title, 60))}</div>
             <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}</div>
           </div>`,
     [isTouch],
   );
-  const onPointHover = useCallback(
-    (point: any) => {
-      // No "jump" on touch — there's no hover there, and toggling the scale on
-      // the synthetic mouse events a tap fires made the pin bounce instead of
-      // opening. Desktop: grow the hovered pin a touch.
-      if (isTouch) return;
-      const newId: string | null = point?.id ?? null;
-      const oldId = hoveredPinIdRef.current;
-      if (newId === oldId) return;
-      if (oldId) {
-        const om = pinMeshesRef.current.get(oldId);
-        if (om) om.scale.setScalar(1);
-      }
-      if (newId) {
-        const nm = pinMeshesRef.current.get(newId);
-        if (nm) nm.scale.setScalar(1.3);
-      }
-      hoveredPinIdRef.current = newId;
-    },
-    [isTouch],
-  );
+  // (No hover-"jump" — toggling a clustered pin's scale as the raycaster flipped
+  // between neighbours made pins flicker. Hover feedback is the tooltip; the
+  // beacon highlight is reserved for the PinRail "you're being flown here" cue.)
   const customThreeObject = useCallback(
     (d: any) => {
       const m = makePushpin({
@@ -446,7 +487,6 @@ export default function GlobeApp({ records }: Props) {
           pointColor={() => "rgba(0,0,0,0)"}
           pointLabel={pointLabel}
           onPointClick={onPointClick}
-          onPointHover={onPointHover}
           /* The visible pushpin — a customLayer group (chrome needle + glossy
              colored bead). Built once with the right dimensions; the update
              function only positions and orients it so local +Y points radially
@@ -471,6 +511,9 @@ export default function GlobeApp({ records }: Props) {
             records={moonRecords}
             onSelect={(recs) => {
               savedPovRef.current = (globeRef.current as any)?.pointOfView() ?? null;
+              // Clicking the Moon pauses the globe's spin while you read its
+              // reports; closing the modal resumes it (see closeModalPreservingView).
+              if (controlsRef.current) controlsRef.current.autoRotate = false;
               setModalRecords(recs);
             }}
           />
@@ -487,7 +530,10 @@ export default function GlobeApp({ records }: Props) {
         <QueuePanel
           type={queueType}
           allRecords={records}
-          onClose={() => setQueueType(null)}
+          onClose={() => {
+            setQueueType(null);
+            highlightPin(null);
+          }}
           onActiveChange={onQueueActiveChange}
         />
       )}

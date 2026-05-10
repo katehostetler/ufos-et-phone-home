@@ -1,73 +1,74 @@
 import * as THREE from "three";
 
 /**
- * Subtly twinkles the bright (city-light) pixels of the globe's night-earth
- * texture by patching the material's fragment shader at compile time. The
- * dark land / ocean is left alone, so only the lights flicker.
+ * Patches the globe material's fragment shader (right after `<map_fragment>`, so
+ * `diffuseColor` carries the night-earth texel) to do three things to the
+ * texel before lighting:
+ *   1. lift the dark ocean / unlit land toward a deep navy instead of pure black
+ *   2. tone the city lights down a bit and pull them off the vivid "pin gold"
+ *   3. twinkle the lit pixels — phase/rate seeded by the pixel's own brightness,
+ *      so different lights flicker out of sync and the twinkle follows a city as
+ *      the globe rotates (no dependency on `vMapUv` / any varying — robust).
  *
- * The patch works by hashing each pixel's UV cell into a per-cell phase + rate,
- * then driving a tiny multiplicative oscillation on `diffuseColor` weighted by
- * the pixel's own brightness. Bright pixels (lit) twinkle; dark pixels don't.
- *
- * Returns a `dispose` function that stops the RAF loop and tidies up.
+ * Returns a `dispose` function that stops the RAF loop.
  */
 export function applyCityLightShimmer(
   material: THREE.Material,
   opts: { intensity?: number; rate?: number } = {},
 ): () => void {
-  const intensity = opts.intensity ?? 0.22; // peak ± multiplier on bright lights
-  const rate = opts.rate ?? 1.0;            // overall speed multiplier
+  const intensity = opts.intensity ?? 0.6; // peak ± multiplier on the brightest lit pixels
+  const rate = opts.rate ?? 1.0; // overall twinkle speed multiplier
   const uTime = { value: 0 };
+  const uIntensity = { value: intensity };
 
   const m = material as THREE.MeshPhongMaterial;
   const prevOnBeforeCompile = m.onBeforeCompile?.bind(m);
 
   m.onBeforeCompile = (shader) => {
     if (prevOnBeforeCompile) prevOnBeforeCompile(shader);
-    shader.uniforms.uTime = uTime;
-    shader.uniforms.uShimmerIntensity = { value: intensity };
+    shader.uniforms.uShimmerTime = uTime;
+    shader.uniforms.uShimmerIntensity = uIntensity;
 
-    // Add uniforms + a tiny hash() at the top of the fragment shader.
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "void main() {",
         `
-        uniform float uTime;
+        uniform float uShimmerTime;
         uniform float uShimmerIntensity;
-        float __ufoHash(vec2 p) {
-          return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-        }
         void main() {`,
       )
-      // Hook just after the diffuse-map sampling: at this point diffuseColor
-      // already carries the texel value. Boost only the bright pixels.
       .replace(
         "#include <map_fragment>",
         `
         #include <map_fragment>
         #ifdef USE_MAP
-          float __lightMask = max(max(diffuseColor.r, diffuseColor.g), diffuseColor.b);
-          // Quantise UVs into cells so a "city" twinkles as one blob (not per-pixel noise).
-          vec2 __cell = floor(vMapUv * 420.0);
-          float __h = __ufoHash(__cell);
-          float __h2 = __ufoHash(__cell + 11.7);
-          float __phase = __h * 6.28318;
-          float __freq = 1.2 + __h * 4.0;
-          // a slow sine, plus an occasional sharper "surge" so some lights blink harder
-          float __osc = sin(uTime * __freq + __phase) * 0.7
-                      + pow(max(0.0, sin(uTime * (0.45 + __h2 * 0.5) + __h2 * 6.28)), 8.0) * 0.6;
-          // most of the lit landmass twinkles a bit; the brightest cities twinkle hardest
-          float __weight = smoothstep(0.16, 0.55, __lightMask);
-          diffuseColor.rgb *= 1.0 + uShimmerIntensity * __osc * __weight;
+        {
+          float __lm = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
+          float __w = smoothstep(0.10, 0.55, __lm); // 0 on dark ocean, ~1 on bright cities
+          // 1) deep-ocean navy floor so the unlit half isn't just black
+          diffuseColor.rgb += vec3(0.022, 0.052, 0.115) * (1.0 - __w);
+          if (__lm > 0.10) {
+            // 2) pull the city lights off the pure pin-gold + take a little brightness off
+            float __lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(__lum), 0.30 * __w);
+            diffuseColor.rgb *= mix(1.0, 0.80, __w);
+            // 3) twinkle — seeded by the pixel's own value so lights flicker out of sync
+            float __s  = fract(sin(__lm * 113.17 + 41.7) * 4391.0);
+            float __s2 = fract(sin(__lm * 271.93 + 7.1) * 9137.0);
+            float __freq = 0.9 + __s * 3.6;
+            float __osc = sin(uShimmerTime * __freq + __s * 6.28318) * 0.75
+                        + pow(max(0.0, sin(uShimmerTime * (0.45 + __s2 * 0.6) + __s2 * 17.0)), 6.0) * 0.55;
+            diffuseColor.rgb *= 1.0 + uShimmerIntensity * __osc * __w;
+          }
+        }
         #endif
         `,
       );
   };
-  // Force a shader recompile on the next render.
-  m.needsUpdate = true;
+  m.needsUpdate = true; // force a recompile so the patch takes effect
 
   let rafId: number | null = null;
-  let started = performance.now();
+  const started = performance.now();
   const loop = (now: number) => {
     uTime.value = ((now - started) / 1000) * rate;
     rafId = requestAnimationFrame(loop);

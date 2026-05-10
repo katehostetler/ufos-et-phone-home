@@ -362,11 +362,16 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
 
   if (!rec) return null;
 
+  // The Moon opens as a collection of all the Apollo lunar reports — label it
+  // "THE MOON" rather than the per-record location.
+  const isLunarSet = records.length > 0 && records.every((r) => r.location?.name === "Moon");
+  const locLabel = isLunarSet ? "THE MOON" : rec.location?.name || "LOCATION UNKNOWN";
+
   const headerEl = (
     <header className="modal-head">
       <span className="loc">
         <span className={`dot ${rec.mediaType}`} />
-        {rec.location?.name || "LOCATION UNKNOWN"}
+        {locLabel}
       </span>
       {!isSheet && <span className={`type-badge ${rec.mediaType}`}>{TYPE_LABEL[rec.mediaType]}</span>}
       {!isSheet && records.length > 1 && (

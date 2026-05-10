@@ -118,7 +118,9 @@ function buildSaucerMesh(spec: UfoSpec): UfoMeshData {
 
   // Invisible, generously-sized hit sphere — so you can actually *catch* a craft
   // without pixel-perfect aim. Opacity 0 (never drawn) but still raycastable.
-  const hitGeo = new THREE.SphereGeometry(4.6, 8, 6);
+  // Divide out spec.scale so the hit volume is ~5 world units for EVERY craft —
+  // small fast ones aren't punished with a tiny target on top of being quick.
+  const hitGeo = new THREE.SphereGeometry(5.0 / spec.scale, 8, 6);
   geos.push(hitGeo);
   const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   mats.push(hitMat);
@@ -206,7 +208,7 @@ export default function FloatingUfos({ globeRef }: FloatingUfosProps) {
       groupRef.current = group;
       scene.add(group);
 
-      const spawnManager = makeSpawnManager({ cap: 4, now: performance.now(), spawnIntervalMs: 8000 });
+      const spawnManager = makeSpawnManager({ cap: 4, minActive: 2, now: performance.now(), spawnIntervalMs: 8000 });
       let lastFrameTime = performance.now();
 
       function clampSpeed(entry: SceneUfo, now: number) {
