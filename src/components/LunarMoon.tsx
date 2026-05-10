@@ -35,7 +35,8 @@ const ORBIT_TILT = THREE.MathUtils.degToRad(20);
 const ORBIT_PERIOD_S = 300; // ~5-minute lap — effectively a slow ambient drift
 // makePushpin() is sized for the 100-unit Earth; scale it down for the Moon.
 const PIN_SCALE = 0.85;
-const PIN_COLOR = "#d4b3ff"; // purple bead (same pushpin shape, "lunar" colour)
+// Bead colour by media type — same palette as the Earth pins.
+const TYPE_COLOR: { [k: string]: string } = { vid: "#ff3b3b", img: "#5ad7ff", pdf: "#ffc870" };
 // Where on the Moon the landing-site pins cluster (we didn't go all over it).
 const CLUSTER_DIR = new THREE.Vector3(0.3, 0.2, 1).normalize();
 const CLUSTER_SPREAD = THREE.MathUtils.degToRad(19); // half-angle of the cluster cone
@@ -121,7 +122,7 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
       const pts = clusterPoints(recs.length, MOON_RADIUS);
       pinsRef.current = [];
       recs.forEach((rec, i) => {
-        const pin = makePushpin({ color: PIN_COLOR });
+        const pin = makePushpin({ color: TYPE_COLOR[rec.mediaType] ?? "#d4b3ff" });
         pin.scale.setScalar(PIN_SCALE);
         // sit at the surface point, oriented so the needle points outward
         const p = pts[i];
@@ -256,11 +257,15 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
       const hit = hitTest();
       if (!hit) return;
       e.stopPropagation();
+      const recs = recordsRef.current;
+      if (!recs.length) return;
       if (hit.kind === "pin" && hit.idx != null) {
+        // open the whole lunar set, starting at the pin you clicked
         const rec = pinsRef.current[hit.idx]?.record;
-        if (rec) onSelectRef.current([rec]);
+        if (rec) onSelectRef.current([rec, ...recs.filter((r) => r.id !== rec.id)]);
+        else onSelectRef.current(recs);
       } else {
-        if (recordsRef.current.length) onSelectRef.current(recordsRef.current);
+        onSelectRef.current(recs);
       }
     }
     function onLeave() {

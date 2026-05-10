@@ -73,3 +73,8 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 - **Bottom dock**: removed the `⊕ … LOCATION UNKNOWN` chip (the dock is sorted by type — that one didn't belong there; the /no-location page still exists and those records appear in the type pages + /gallery).
 - **`ⓘ ABOUT`** moved out of the top bar to a chip in the bottom-right corner of the homepage (mirroring the `★ HALL OF FAME` chip on the left); icon-only on mobile. With `ABOUT` gone from the top bar, `DECLASSIFIED · RELEASE_01` now sits alone in the top-right corner.
 - **PinRail** (the side browser from the BROWSE PINS chips): no longer a full-height strip — it's now a panel anchored top-left taking ~36vw × ~60vh on desktop (full-width × ~50vh on mobile), so the globe stays visible and you can watch the camera fly as you scroll. Cards are taller (thumbnail on top, title below) with a type badge, instead of squat wide cards.
+
+### Changed (Moon pins + modal header)
+- Moon pin beads are now coloured by media type — same red/cyan/gold palette as the Earth pins (the 6 Apollo photos = cyan beads, the 2 transcripts = gold) — instead of all purple.
+- Clicking a Moon pin now opens the whole 8-record lunar set in the modal, starting at the one you clicked (was a single record).
+- RecordModal header on mobile: bumped the gap and gave the location / type-badge / counter `flex-shrink: 0` so the "1 / 8" counter no longer gets clipped by the (wide) type badge.
