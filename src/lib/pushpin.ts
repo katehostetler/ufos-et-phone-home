@@ -7,15 +7,17 @@ import * as THREE from "three";
  */
 const GLOBE_RADIUS = 100;
 
-/** Tunable geometry for the map-style pushpin markers. */
+/** Tunable geometry for the map-style pushpin markers. (Small — the bead is just
+ *  a marker; the clickable hit-volume is a separate, much larger transparent
+ *  sphere set by `pointRadius` in GlobeApp.) */
 export const PUSHPIN = {
-  needleRadius: 0.14, // chrome shaft radius (world units)
-  beadRadius: 1.25,
-  beadRadiusRegional: 1.6,
-  altitude: 0.06, // bead floats this high (fraction of globe radius)
-  altitudeRegional: 0.075,
+  needleRadius: 0.1, // chrome shaft radius (world units)
+  beadRadius: 0.72,
+  beadRadiusRegional: 0.92,
+  altitude: 0.04, // bead floats this high (fraction of globe radius)
+  altitudeRegional: 0.05,
   needleColor: 0xb8c0c8,
-  touchScale: 1.5, // pins get pumped up on touch devices for fat tap targets
+  touchScale: 1.3, // pins pumped up a little on touch devices
 } as const;
 
 export interface PushpinOpts {
