@@ -41,6 +41,58 @@ const TYPE_COLOR: { [k: string]: string } = { vid: "#ff3b3b", img: "#5ad7ff", pd
 const CLUSTER_DIR = new THREE.Vector3(0.3, 0.2, 1).normalize();
 const CLUSTER_SPREAD = THREE.MathUtils.degToRad(19); // half-angle of the cluster cone
 
+// A tiny saucer that loops around the Moon — but it's *super* skittish: get your
+// cursor anywhere near it and it bolts (whips around the Moon, sometimes flips
+// direction, jitters). Decorative; you basically can't pin it down.
+const MOON_SAUCER_ORBIT_R = MOON_RADIUS + 10;
+const MOON_SAUCER_ORBIT_TILT = THREE.MathUtils.degToRad(28);
+const MOON_SAUCER_ORBIT_PERIOD_S = 22; // a leisurely lap when it's not spooked
+const MOON_SAUCER_SIZE = 1.0; // overall scale of the little craft
+const MOON_SAUCER_FLEE_NDC = 0.13; // cursor within this (screen NDC) → it bolts
+const MOON_SAUCER_FLEE_MUL = 12; // orbit-speed multiplier while fleeing
+const MOON_SAUCER_FLEE_MS = 900; // how long a bolt lasts
+
+/** A minimal brushed-silver flying saucer: tapered disc + dark dome + rim lights. */
+function makeMoonSaucer(): { mesh: THREE.Group; geos: THREE.BufferGeometry[]; mats: THREE.Material[] } {
+  const geos: THREE.BufferGeometry[] = [];
+  const mats: THREE.Material[] = [];
+  const g = new THREE.Group();
+  const silver = new THREE.Color("#aab3bf");
+
+  const bodyGeo = new THREE.CylinderGeometry(1.9, 1.1, 0.42, 24);
+  geos.push(bodyGeo);
+  const bodyMat = new THREE.MeshPhongMaterial({
+    color: silver, shininess: 26, specular: new THREE.Color(0x7a8490),
+    emissive: silver.clone().multiplyScalar(0.05),
+  });
+  mats.push(bodyMat);
+  g.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+  const domeGeo = new THREE.SphereGeometry(0.95, 14, 9, 0, Math.PI * 2, 0, Math.PI / 2);
+  geos.push(domeGeo);
+  const domeMat = new THREE.MeshPhongMaterial({
+    color: silver.clone().multiplyScalar(0.32), shininess: 60,
+    specular: new THREE.Color(0xa8b2be), transparent: true, opacity: 0.95,
+  });
+  mats.push(domeMat);
+  const dome = new THREE.Mesh(domeGeo, domeMat);
+  dome.position.y = 0.18;
+  g.add(dome);
+
+  const dotGeo = new THREE.SphereGeometry(0.18, 6, 6);
+  geos.push(dotGeo);
+  const dotMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xc8ecff) });
+  mats.push(dotMat);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    const d = new THREE.Mesh(dotGeo, dotMat);
+    d.position.set(Math.cos(a) * 1.7, -0.02, Math.sin(a) * 1.7);
+    g.add(d);
+  }
+  g.scale.setScalar(MOON_SAUCER_SIZE);
+  return { mesh: g, geos, mats };
+}
+
 // Fan N points inside a small cone around CLUSTER_DIR on the Moon's surface.
 function clusterPoints(n: number, radius: number): THREE.Vector3[] {
   // Build an orthonormal basis around CLUSTER_DIR.
@@ -72,6 +124,7 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
   const raycaster = useRef(new THREE.Raycaster());
   const pointer = useRef(new THREE.Vector2());
   const hoveredRef = useRef<{ kind: "pin" | "moon"; idx?: number } | null>(null);
+  const cursorActiveRef = useRef(false); // is the cursor over the globe stage right now?
   const tooltipRef = useRef<HTMLDivElement | null>(null);
   const disp = useRef<{ geo: THREE.BufferGeometry[]; mat: THREE.Material[]; tex: THREE.Texture[] }>({
     geo: [],
@@ -141,17 +194,58 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
         pinsRef.current.push({ mesh: pin, hitGeo: hit, record: rec });
       });
 
+      // A little saucer doing laps of the Moon — but skittish: it bolts when the
+      // cursor closes in. Rides on a tilted pivot so its orbit isn't edge-on.
+      const ms = makeMoonSaucer();
+      disp.current.geo.push(...ms.geos);
+      disp.current.mat.push(...ms.mats);
+      const moonSaucerPivot = new THREE.Group();
+      moonSaucerPivot.rotation.x = MOON_SAUCER_ORBIT_TILT;
+      ms.mesh.position.set(MOON_SAUCER_ORBIT_R, 0, 0);
+      moonSaucerPivot.add(ms.mesh);
+      moon.add(moonSaucerPivot);
+      let msAngle = 0; // hand-integrated orbit angle so we can vary the speed
+      let msDir = 1; // ±1 — flips when it bolts
+      let msFleeUntil = 0;
+      const _msWorld = new THREE.Vector3();
+
       const t0 = performance.now();
+      let lastNow = t0;
       function frame(now: number) {
         rafRef.current = requestAnimationFrame(frame);
         if (!globeRef.current) return;
         const t = (now - t0) / 1000;
+        const dt = Math.min((now - lastNow) / 1000, 0.1);
+        lastNow = now;
         const a = reducedMotion.current ? 0.7 : (t / ORBIT_PERIOD_S) * Math.PI * 2;
         group.position.set(
           Math.cos(a) * ORBIT_RADIUS,
           Math.sin(a) * Math.sin(ORBIT_TILT) * ORBIT_RADIUS * 0.45,
           Math.sin(a) * ORBIT_RADIUS,
         );
+        // the little moon-saucer's lap + own spin + a faint bob — and its bolt
+        if (!reducedMotion.current) {
+          const cam = globeRef.current.camera();
+          // is the cursor closing in on the saucer (in screen space)? → bolt
+          if (cursorActiveRef.current) {
+            ms.mesh.getWorldPosition(_msWorld);
+            _msWorld.project(cam);
+            if (_msWorld.z < 1) {
+              const dx = _msWorld.x - pointer.current.x;
+              const dy = _msWorld.y - pointer.current.y;
+              if (dx * dx + dy * dy < MOON_SAUCER_FLEE_NDC * MOON_SAUCER_FLEE_NDC) {
+                msFleeUntil = now + MOON_SAUCER_FLEE_MS;
+                if (Math.random() < 0.5) msDir = -msDir; // sometimes whip the other way
+              }
+            }
+          }
+          const fleeing = now < msFleeUntil;
+          const speedMul = fleeing ? MOON_SAUCER_FLEE_MUL : 1;
+          msAngle += msDir * (dt / MOON_SAUCER_ORBIT_PERIOD_S) * Math.PI * 2 * speedMul;
+          moonSaucerPivot.rotation.y = msAngle;
+          ms.mesh.rotation.y += dt * (fleeing ? 7 : 1.6);
+          ms.mesh.position.y = Math.sin(t * 1.1) * 2.4 + (fleeing ? Math.sin(t * 38) * 1.6 : 0);
+        }
         // gentle pulse + hover grow
         if (!reducedMotion.current) {
           const pulse = PIN_SCALE * (1 + Math.sin(t * 2.2) * 0.07);
@@ -231,6 +325,7 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
     function onMove(e: PointerEvent) {
       const el = getContainer();
       if (!el) return;
+      cursorActiveRef.current = true;
       ndc(e, el);
       const hit = hitTest();
       hoveredRef.current = hit;
@@ -270,6 +365,7 @@ export default function LunarMoon({ globeRef, records, onSelect }: Props) {
     }
     function onLeave() {
       hoveredRef.current = null;
+      cursorActiveRef.current = false;
       if (container) container.style.cursor = "";
       if (tooltipRef.current) tooltipRef.current.style.display = "none";
     }
