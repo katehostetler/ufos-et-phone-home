@@ -47,14 +47,17 @@ export function applyCityLightShimmer(
         #include <map_fragment>
         #ifdef USE_MAP
           float __lightMask = max(max(diffuseColor.r, diffuseColor.g), diffuseColor.b);
-          // Quantise UVs into ~512x512 cells so neighbouring pixels twinkle together
-          // (so a single "city" reads as one light, not noisy per-pixel hash).
-          vec2 __cell = floor(vMapUv * 512.0);
+          // Quantise UVs into cells so a "city" twinkles as one blob (not per-pixel noise).
+          vec2 __cell = floor(vMapUv * 420.0);
           float __h = __ufoHash(__cell);
+          float __h2 = __ufoHash(__cell + 11.7);
           float __phase = __h * 6.28318;
-          float __freq = 1.4 + __h * 3.6;
-          float __osc = sin(uTime * __freq + __phase);
-          float __weight = smoothstep(0.45, 0.85, __lightMask);
+          float __freq = 1.2 + __h * 4.0;
+          // a slow sine, plus an occasional sharper "surge" so some lights blink harder
+          float __osc = sin(uTime * __freq + __phase) * 0.7
+                      + pow(max(0.0, sin(uTime * (0.45 + __h2 * 0.5) + __h2 * 6.28)), 8.0) * 0.6;
+          // most of the lit landmass twinkles a bit; the brightest cities twinkle hardest
+          float __weight = smoothstep(0.16, 0.55, __lightMask);
           diffuseColor.rgb *= 1.0 + uShimmerIntensity * __osc * __weight;
         #endif
         `,

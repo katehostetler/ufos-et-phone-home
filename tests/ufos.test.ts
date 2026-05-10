@@ -23,13 +23,10 @@ describe("UFO_POOL", () => {
     expect(UFO_POOL.length).toBeGreaterThanOrEqual(4);
   });
 
-  it("has only saucer + tic-tac kinds (no abstract orbs)", () => {
+  it("is all flying saucers (no orbs, no pill tic-tacs)", () => {
     for (const spec of UFO_POOL) {
-      expect(["saucer", "tictac"]).toContain(spec.kind);
+      expect(spec.kind).toBe("saucer");
     }
-    const kinds = new Set(UFO_POOL.map((s) => s.kind));
-    expect(kinds.has("saucer")).toBe(true);
-    expect(kinds.has("tictac")).toBe(true);
   });
 
   it("all entries have valid structure", () => {
@@ -58,7 +55,7 @@ describe("UFO_POOL", () => {
     }
   });
 
-  it("colors are desaturated metallics (R≈G≈B, fairly light) — silver, not green", () => {
+  it("colors are desaturated metallics (R≈G≈B) — dark silver / gunmetal, not green", () => {
     for (const spec of UFO_POOL) {
       const r = parseInt(spec.color.slice(1, 3), 16);
       const g = parseInt(spec.color.slice(3, 5), 16);
@@ -66,7 +63,7 @@ describe("UFO_POOL", () => {
       const max = Math.max(r, g, b);
       const min = Math.min(r, g, b);
       expect(max - min).toBeLessThan(40); // low saturation → reads as metal
-      expect((r + g + b) / 3).toBeGreaterThan(120); // light enough to read on the dark globe
+      expect((r + g + b) / 3).toBeGreaterThan(80); // dark-silver, but not black
     }
   });
 });
