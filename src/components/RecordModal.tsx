@@ -414,6 +414,28 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
       ) : (
         <div className="modal-hero-placeholder">No preview available</div>
       )}
+      {records.length > 1 && (
+        <>
+          <button
+            type="button"
+            className="hero-nav hero-nav-prev"
+            onClick={() => setIdx((i) => Math.max(0, i - 1))}
+            disabled={idx === 0}
+            aria-label="Previous record at this location"
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className="hero-nav hero-nav-next"
+            onClick={() => setIdx((i) => Math.min(records.length - 1, i + 1))}
+            disabled={idx === records.length - 1}
+            aria-label="Next record at this location"
+          >
+            ›
+          </button>
+        </>
+      )}
     </div>
   );
 
@@ -661,6 +683,36 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           width: 100%;
           overflow: hidden;
           display: flex; align-items: center; justify-content: center;
+          position: relative; /* anchor the prev/next arrows */
+        }
+        /* gallery arrows over the media — for multi-record locations, so you can
+           flip through without scrolling down to the PREV/NEXT footer */
+        .hero-nav {
+          position: absolute;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 40px;
+          height: 60px;
+          display: flex; align-items: center; justify-content: center;
+          background: rgba(2,4,8,.45);
+          border: 1px solid rgba(255,255,255,.22);
+          color: #fff;
+          font-size: 26px;
+          line-height: 1;
+          cursor: pointer;
+          border-radius: 4px;
+          backdrop-filter: blur(2px);
+          transition: background .15s, border-color .15s;
+          z-index: 2;
+        }
+        .hero-nav:hover { background: rgba(2,4,8,.75); border-color: var(--color-hud); }
+        .hero-nav[disabled] { display: none; }
+        .hero-nav-prev { left: 10px; }
+        .hero-nav-next { right: 10px; }
+        @media (max-width: ${SHEET_MAX_WIDTH}px) {
+          .hero-nav { width: 34px; height: 50px; font-size: 22px; }
+          .hero-nav-prev { left: 6px; }
+          .hero-nav-next { right: 6px; }
         }
         .modal-hero.is-video {
           aspect-ratio: 16/9;
