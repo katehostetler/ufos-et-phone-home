@@ -6,7 +6,7 @@
  *
  * Craft colors are desaturated metallic silver / steel / chrome tones —
  * "futuristic spacecraft", and well clear of the media-type pin palette:
- *   vid: #ff3b3b  |  img: #5ad7ff  |  pdf: #ffc870
+ *   vid: #ff3b3b  |  img: #5ad7ff  |  pdf: #b56cff
  */
 
 // ─── UFO pool ────────────────────────────────────────────────────────────────

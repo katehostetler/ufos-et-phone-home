@@ -6,7 +6,7 @@
   --color-hof:       #d4b3ff;  /* Hall of Fame / "ET PHONE HOME" purple accent */
   --color-vid:       #ff3b3b;
   --color-img:       #5ad7ff;
-  --color-pdf:       #ffc870;
+  --color-pdf:       #b56cff;
   --color-line:      rgba(106,255,200,0.18);
   --color-line-dim:  rgba(106,255,200,0.08);
   --font-display:    "Orbitron", ui-sans-serif, system-ui, sans-serif;
@@ -144,7 +144,7 @@ body::after {
 
 .chip.active.vid { color: var(--color-vid); border-color: rgba(255,59,59,.5);  background: rgba(255,59,59,.08); }
 .chip.active.img { color: var(--color-img); border-color: rgba(90,215,255,.5); background: rgba(90,215,255,.08); }
-.chip.active.pdf { color: var(--color-pdf); border-color: rgba(255,200,112,.5); background: rgba(255,200,112,.08); }
+.chip.active.pdf { color: var(--color-pdf); border-color: rgba(181,108,255,.5); background: rgba(181,108,255,.08); }
 .chip.active     { color: var(--color-hud); border-color: rgba(106,255,200,.5); background: rgba(106,255,200,.08); }
 .chip.off        { opacity: .35; }
 
@@ -182,7 +182,7 @@ body::after {
 /* Outline the hover tooltip in the record's file-type colour */
 .pin-tooltip.vid { border-color: var(--color-vid); box-shadow: 0 0 14px rgba(255,59,59,.4),  0 4px 16px rgba(0,0,0,.6); }
 .pin-tooltip.img { border-color: var(--color-img); box-shadow: 0 0 14px rgba(90,215,255,.4), 0 4px 16px rgba(0,0,0,.6); }
-.pin-tooltip.pdf { border-color: var(--color-pdf); box-shadow: 0 0 14px rgba(255,200,112,.4), 0 4px 16px rgba(0,0,0,.6); }
+.pin-tooltip.pdf { border-color: var(--color-pdf); box-shadow: 0 0 14px rgba(181,108,255,.4), 0 4px 16px rgba(0,0,0,.6); }
 .pin-tooltip .loc {
   color: var(--color-hud);
   font-size: 9px;
@@ -497,7 +497,7 @@ body::after {
 /* Solid-ish dark backing so the coloured text reads on any thumbnail (incl. white PDF pages) */
 .type-badge.vid { color: #ff9a9a; background: rgba(10,4,6,.82);  border: 1px solid rgba(255,59,59,.65); }
 .type-badge.img { color: #9ce6ff; background: rgba(4,8,11,.82);  border: 1px solid rgba(90,215,255,.6); }
-.type-badge.pdf { color: #ffdc9c; background: rgba(11,8,4,.82);  border: 1px solid rgba(255,200,112,.65); }
+.type-badge.pdf { color: #e3cdff; background: rgba(11,8,4,.82);  border: 1px solid rgba(181,108,255,.65); }
 
 /* Card body */
 .hof-card-body {
@@ -644,7 +644,7 @@ body::after {
 .pin-rail-card.active { transform: scale(1.015); }
 .pin-rail-card.active.vid { border-color: rgba(255,59,59,.7);  box-shadow: 0 0 16px rgba(255,59,59,.25); background: rgba(255,59,59,.07); }
 .pin-rail-card.active.img { border-color: rgba(90,215,255,.7); box-shadow: 0 0 16px rgba(90,215,255,.25); background: rgba(90,215,255,.07); }
-.pin-rail-card.active.pdf { border-color: rgba(255,200,112,.7); box-shadow: 0 0 16px rgba(255,200,112,.25); background: rgba(255,200,112,.07); }
+.pin-rail-card.active.pdf { border-color: rgba(181,108,255,.7); box-shadow: 0 0 16px rgba(181,108,255,.25); background: rgba(181,108,255,.07); }
 .pin-rail-card-btn {
   all: unset;
   display: flex;

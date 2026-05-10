@@ -39,7 +39,7 @@ const ORBIT_PERIOD_S = 300; // ~5-minute lap — effectively a slow ambient drif
 // makePushpin() is sized for the 100-unit Earth; scale it down for the Moon.
 const PIN_SCALE = 0.85;
 // Bead colour by media type — same palette as the Earth pins.
-const TYPE_COLOR: { [k: string]: string } = { vid: "#ff3b3b", img: "#5ad7ff", pdf: "#ffc870" };
+const TYPE_COLOR: { [k: string]: string } = { vid: "#ff3b3b", img: "#5ad7ff", pdf: "#b56cff" };
 // Where on the Moon the landing-site pins cluster (we didn't go all over it).
 const CLUSTER_DIR = new THREE.Vector3(0.3, 0.2, 1).normalize();
 const CLUSTER_SPREAD = THREE.MathUtils.degToRad(19); // half-angle of the cluster cone

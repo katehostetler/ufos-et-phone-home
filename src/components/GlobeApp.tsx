@@ -14,7 +14,7 @@ import type { Record, MediaType } from "@/types/record";
 const COLORS: Record<MediaType, string> = {
   vid: "#ff3b3b",
   img: "#5ad7ff",
-  pdf: "#ffc870",
+  pdf: "#b56cff", // violet — was gold, but it blended into the globe's amber city lights
 };
 
 // Glyphs for the hover tooltip (mirrors the dock chips: video ▶, photo ⊡, document ▤)
@@ -332,7 +332,7 @@ export default function GlobeApp({ records }: Props) {
       if (arr) arr.push(r);
       else byLoc.set(r.location.name, [r]);
     }
-    const out: (Record & { _count: number; _pinType: MediaType })[] = [];
+    const out: (Record & { _count: number; _pinType: MediaType; _hasVid: boolean })[] = [];
     for (const recs of byLoc.values()) {
       const counts: Record<MediaType, number> = { vid: 0, img: 0, pdf: 0 };
       for (const r of recs) counts[r.mediaType]++;
@@ -342,17 +342,15 @@ export default function GlobeApp({ records }: Props) {
       }
       // pick the record that owns the dominant type as the "representative"
       const rep = recs.find((r) => r.mediaType === best) ?? recs[0];
-      out.push({ ...rep, _count: recs.length, _pinType: best });
+      out.push({ ...rep, _count: recs.length, _pinType: best, _hasVid: counts.vid > 0 });
     }
     return out;
   }, [records]);
 
-  // ring pulses — every video record's location (independent of the pin colour,
-  // so a mostly-document location with a video still gets the "video here" pulse)
-  const rings = useMemo(
-    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid" && r.location.name !== "Moon"),
-    [records],
-  );
+  // ring pulses — a location pulses if it has any video (the "footage here" cue)
+  // OR holds a few records (a "busy spot" cue). The pulse grows with the record
+  // count, so the more is at a place the bigger the rings it throws off.
+  const rings = useMemo(() => points.filter((p) => p._hasVid || p._count >= 3), [points]);
 
   // when the queue's active record changes, fly the globe to that location and
   // light its pin up (white beacon) so it's obvious which one you were moved to
@@ -478,7 +476,14 @@ export default function GlobeApp({ records }: Props) {
     obj.lookAt(0, 0, 0);
     obj.rotateX(-Math.PI / 2);
   }, []);
-  const ringColor = useCallback(() => (t: number) => `rgba(255, 59, 59, ${1 - t})`, []);
+  // ring pulse coloured by the location's dominant type, fading out as it expands
+  const ringColor = useCallback((d: any) => {
+    const rgb =
+      d._pinType === "vid" ? "255,59,59" : d._pinType === "img" ? "90,215,255" : "181,108,255";
+    return (t: number) => `rgba(${rgb}, ${(1 - t) * 0.7})`;
+  }, []);
+  // ...and sized by how many records live at that location (the more, the bigger)
+  const ringMaxRadius = useCallback((d: any) => Math.min(2 + (d._count ?? 1) * 0.45, 7.5), []);
 
   return (
     <>
@@ -568,9 +573,9 @@ export default function GlobeApp({ records }: Props) {
           ringLat={pointLat}
           ringLng={pointLng}
           ringColor={ringColor}
-          ringMaxRadius={3.5}
+          ringMaxRadius={ringMaxRadius}
           ringPropagationSpeed={2.4}
-          ringRepeatPeriod={1400}
+          ringRepeatPeriod={1600}
         />
         {/* Floating UFOs easter egg — Three.js meshes injected into the same scene */}
         <FloatingUfos globeRef={globeRef} isTouch={isTouch} />
