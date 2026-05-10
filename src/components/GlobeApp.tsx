@@ -24,6 +24,11 @@ const PIN_GLYPHS: Record<MediaType, string> = {
   pdf: "▤",
 };
 
+// When one location holds a mix of record types, the pin takes the dominant
+// type's colour; this breaks ties (document > photo > video — so a 1-pdf/1-vid
+// spot like "Low Earth Orbit" reads as a gold document pin).
+const TYPE_PRIORITY: Record<MediaType, number> = { pdf: 3, img: 2, vid: 1 };
+
 /** Highlight colour for the pin the PinRail is currently flying you to — a clean
  *  white beacon, deliberately not one of the media-type pin colours. */
 const PIN_HIGHLIGHT = 0xffffff;
@@ -281,47 +286,47 @@ export default function GlobeApp({ records }: Props) {
     [records],
   );
 
-  // dataset of Earth pins — every record with a location, EXCEPT the lunar ones
-  // (which live on the Moon). No per-type filtering — the BROWSE PINS chips open
-  // the PinRail browser instead of toggling visibility.
-  //
-  // Records that share a location would otherwise stack into one overlapping
-  // pin; we fan co-located ones out into a little ring around the shared point
-  // so each colour is visible. The offset is purely cosmetic — `_pinLat/_pinLng`
-  // are what the pushpin / hit-target / ring use; the records' real `location`
-  // is untouched, so click-grouping ("all records at this place") still works.
+  // Globe pins — ONE pushpin per unique location (the geocoder maps every
+  // location *string* to a single point, so all the records that share a
+  // location string sit on the same spot). Showing a separate pin per record
+  // just stacks N of them on that point — they z-fight and the wrong colour
+  // ends up on top (that's why the "Low Earth Orbit" pin looked red — the
+  // audio clip, tagged video, was stacked on the transcript document). So we
+  // collapse each location to one pin coloured by its dominant media type
+  // (ties → document > photo > video). Clicking it still pulls up *every*
+  // record at that location (see `openLocationModal`).
   const points = useMemo(() => {
-    const located = records.filter((r) => r.hasLocation && r.location && r.location.name !== "Moon");
     const byLoc = new Map<string, Record[]>();
-    for (const r of located) {
-      const key = r.location!.name;
-      const arr = byLoc.get(key);
+    for (const r of records) {
+      if (!r.hasLocation || !r.location || r.location.name === "Moon") continue;
+      const arr = byLoc.get(r.location.name);
       if (arr) arr.push(r);
-      else byLoc.set(key, [r]);
+      else byLoc.set(r.location.name, [r]);
     }
-    return located.map((r) => {
-      const sibs = byLoc.get(r.location!.name)!;
-      const lat = r.location!.lat;
-      const lng = r.location!.lng;
-      if (sibs.length <= 1) return { ...r, _pinLat: lat, _pinLng: lng };
-      const n = sibs.length;
-      const i = sibs.indexOf(r);
-      const radius = 0.5 + 0.2 * (n - 1); // degrees of arc — small ring
-      const ang = (2 * Math.PI * i) / n + 0.45; // a touch of rotation for variety
-      const lngScale = 1 / Math.max(0.2, Math.cos((lat * Math.PI) / 180)); // keep the spread isotropic
-      return {
-        ...r,
-        _pinLat: lat + radius * Math.sin(ang),
-        _pinLng: lng + radius * Math.cos(ang) * lngScale,
-      };
-    });
+    const out: (Record & { _count: number; _pinType: MediaType })[] = [];
+    for (const recs of byLoc.values()) {
+      const counts: Record<MediaType, number> = { vid: 0, img: 0, pdf: 0 };
+      for (const r of recs) counts[r.mediaType]++;
+      let best: MediaType = "pdf";
+      for (const t of ["vid", "img", "pdf"] as MediaType[]) {
+        if (counts[t] > counts[best] || (counts[t] === counts[best] && TYPE_PRIORITY[t] > TYPE_PRIORITY[best])) best = t;
+      }
+      // pick the record that owns the dominant type as the "representative"
+      const rep = recs.find((r) => r.mediaType === best) ?? recs[0];
+      out.push({ ...rep, _count: recs.length, _pinType: best });
+    }
+    return out;
   }, [records]);
 
-  // ring data for videos (pulses) — uses the same fanned-out positions
-  const rings = useMemo(() => points.filter((p) => p.mediaType === "vid"), [points]);
+  // ring pulses — every video record's location (independent of the pin colour,
+  // so a mostly-document location with a video still gets the "video here" pulse)
+  const rings = useMemo(
+    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid" && r.location.name !== "Moon"),
+    [records],
+  );
 
-  // when the queue's active record changes, fly the globe to its (fanned-out)
-  // pin and light that pin up so it's obvious which one you were moved to
+  // when the queue's active record changes, fly the globe to that location and
+  // light its pin up (white beacon) so it's obvious which one you were moved to
   const onQueueActiveChange = useCallback(
     (rec: Record) => {
       if (!rec.location || !globeRef.current) return;
@@ -331,18 +336,13 @@ export default function GlobeApp({ records }: Props) {
         highlightPin(null); // lunar records aren't Earth pins
         return;
       }
-      const p = points.find((x) => x.id === rec.id);
       globeRef.current.pointOfView(
-        {
-          lat: p?._pinLat ?? rec.location.lat,
-          lng: p?._pinLng ?? rec.location.lng,
-          altitude: 1.7,
-        },
+        { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
         900,
       );
-      highlightPin(rec.id);
+      highlightPin(rec.location.name);
     },
-    [highlightPin, points],
+    [highlightPin],
   );
 
   const openLocationModal = useCallback(
@@ -387,8 +387,8 @@ export default function GlobeApp({ records }: Props) {
   // whenever its identity changes — so an inline arrow here would rebuild every
   // pushpin mesh on every GlobeApp re-render (e.g. opening a modal). Keep them
   // stable; only `isTouch` actually affects them.
-  const pointLat = useCallback((d: any) => d._pinLat ?? d.location.lat, []);
-  const pointLng = useCallback((d: any) => d._pinLng ?? d.location.lng, []);
+  const pointLat = useCallback((d: any) => d.location.lat, []);
+  const pointLng = useCallback((d: any) => d.location.lng, []);
   const pointAltitude = useCallback(
     (d: any) => pushpinAltitude({ regional: d.location.regional, touch: isTouch }),
     [isTouch],
@@ -404,17 +404,19 @@ export default function GlobeApp({ records }: Props) {
     [isTouch],
   );
   const pointLabel = useCallback(
-    (d: any) =>
+    (d: any) => {
       // Hover tooltip — desktop (fine-pointer) only. Touch devices get the
       // bottom-sheet preview instead, so suppress the floating label there.
-      // Outlined in the file-type colour with the file-type glyph.
-      isTouch
-        ? ""
-        : `<div class="pin-tooltip ${d.mediaType}">
-            <div class="loc"><span class="pt-icon">${PIN_GLYPHS[d.mediaType as MediaType] ?? ""}</span>${escapeHtml(d.location.name)}</div>
+      // Outlined in the (dominant) file-type colour with the file-type glyph.
+      if (isTouch) return "";
+      const t: MediaType = d._pinType ?? d.mediaType;
+      const extra = d._count > 1 ? ` · +${d._count - 1} more here` : "";
+      return `<div class="pin-tooltip ${t}">
+            <div class="loc"><span class="pt-icon">${PIN_GLYPHS[t] ?? ""}</span>${escapeHtml(d.location.name)}</div>
             <div class="ttl">${escapeHtml(truncate(d.title, 60))}</div>
-            <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}</div>
-          </div>`,
+            <div class="meta">${escapeHtml(d.agency)}${d.year ? " · " + d.year : ""}${extra}</div>
+          </div>`;
+    },
     [isTouch],
   );
   // (No hover-"jump" — toggling a clustered pin's scale as the raycaster flipped
@@ -423,20 +425,18 @@ export default function GlobeApp({ records }: Props) {
   const customThreeObject = useCallback(
     (d: any) => {
       const m = makePushpin({
-        color: COLORS[d.mediaType as MediaType],
+        color: COLORS[(d._pinType ?? d.mediaType) as MediaType],
         regional: d.location.regional,
         touch: isTouch,
       });
-      pinMeshesRef.current.set(d.id, m);
+      pinMeshesRef.current.set(d.location.name, m); // one pin per location
       return m;
     },
     [isTouch],
   );
   const customThreeObjectUpdate = useCallback((obj: any, d: any) => {
     if (!globeRef.current) return;
-    const lat = d._pinLat ?? d.location.lat;
-    const lng = d._pinLng ?? d.location.lng;
-    const surf = (globeRef.current as any).getCoords(lat, lng, 0);
+    const surf = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, 0);
     obj.position.set(surf.x, surf.y, surf.z);
     // After lookAt + rotateX(-90°), local +Y points radially outward — matching
     // the pushpin geometry built from y=0 (surface) upward.
