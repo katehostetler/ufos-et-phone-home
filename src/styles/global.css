@@ -272,12 +272,13 @@ body::after {
   background: rgba(106,255,200,.16);
   box-shadow: 0 0 12px rgba(106,255,200,.35);
 }
-.chip.info-chip .info-glyph { font-size: 1.35em; line-height: 1; }
+/* a plain lowercase "i" — .chip sets text-transform: uppercase, so undo that here */
+.chip.info-chip .info-glyph { text-transform: lowercase; font-weight: 600; font-size: 1.4em; line-height: 1; }
 @media (max-width: 767px) {
-  /* icon-only — a clean square box around the ⓘ */
+  /* icon-only — a clean square box, same height as the HALL OF FAME chip (~26px) */
   .chip.info-chip {
     bottom: 60px; right: 8px;
-    width: 34px; height: 34px;
+    width: 26px; height: 26px;
     padding: 0;
     display: inline-flex;
     align-items: center;
@@ -286,7 +287,7 @@ body::after {
     gap: 0;
   }
   .chip.info-chip .info-text { display: none; }
-  .chip.info-chip .info-glyph { font-size: 18px; line-height: 1; margin: 0; }
+  .chip.info-chip .info-glyph { font-size: 16px; line-height: 1; margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hof-chip { animation: none; }

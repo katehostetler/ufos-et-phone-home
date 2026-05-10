@@ -41,6 +41,9 @@ export default function GlobeApp({ records }: Props) {
   // Saved camera position so we can restore the user's view after they close
   // a modal opened by clicking a pin.
   const savedPovRef = useRef<{ lat: number; lng: number; altitude: number } | null>(null);
+  // pushpin meshes keyed by record id, so onPointHover can "jump" the hovered one
+  const pinMeshesRef = useRef<Map<string, any>>(new Map());
+  const hoveredPinIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const mq = window.matchMedia("(pointer: coarse)");
@@ -221,7 +224,7 @@ export default function GlobeApp({ records }: Props) {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let stopShimmer: (() => void) | null = null;
     if (!reduceMotion && globeMat) {
-      stopShimmer = applyCityLightShimmer(globeMat, { intensity: 0.30, rate: 1.1 });
+      stopShimmer = applyCityLightShimmer(globeMat, { intensity: 0.5, rate: 1.2 });
     }
 
     return () => {
@@ -389,7 +392,7 @@ export default function GlobeApp({ records }: Props) {
           width={size.w}
           height={size.h}
           backgroundColor="rgba(0,0,0,0)"
-          globeImageUrl="https://unpkg.com/three-globe@2.27.2/example/img/earth-night.jpg"
+          globeImageUrl="/textures/earth-night.jpg"
           bumpImageUrl="https://unpkg.com/three-globe@2.27.2/example/img/earth-topology.png"
           showAtmosphere={true}
           atmosphereColor="#5ab4ff"
@@ -427,18 +430,35 @@ export default function GlobeApp({ records }: Props) {
                 </div>`
           }
           onPointClick={onPointClick}
+          /* Subtle "jump": grow the hovered pin a touch (like the Moon pins). */
+          onPointHover={(point: any) => {
+            const newId: string | null = point?.id ?? null;
+            const oldId = hoveredPinIdRef.current;
+            if (newId === oldId) return;
+            if (oldId) {
+              const om = pinMeshesRef.current.get(oldId);
+              if (om) om.scale.setScalar(1);
+            }
+            if (newId) {
+              const nm = pinMeshesRef.current.get(newId);
+              if (nm) nm.scale.setScalar(1.3);
+            }
+            hoveredPinIdRef.current = newId;
+          }}
           /* The visible pushpin — a customLayer group (chrome needle + glossy
              colored bead). Built once with the right dimensions; the update
              function only positions and orients it so local +Y points radially
              outward from the surface. */
           customLayerData={points}
-          customThreeObject={(d: any) =>
-            makePushpin({
+          customThreeObject={(d: any) => {
+            const m = makePushpin({
               color: COLORS[d.mediaType as MediaType],
               regional: d.location.regional,
               touch: isTouch,
-            })
-          }
+            });
+            pinMeshesRef.current.set(d.id, m);
+            return m;
+          }}
           customThreeObjectUpdate={(obj: any, d: any) => {
             if (!globeRef.current) return;
             const surf = (globeRef.current as any).getCoords(

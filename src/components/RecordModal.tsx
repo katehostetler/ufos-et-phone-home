@@ -613,13 +613,15 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           }
           .modal-head {
             padding: 10px 12px;
-            gap: 8px;
+            gap: 12px;
+            row-gap: 7px;
             flex-wrap: wrap;
             /* extra top space for the notch / status bar on edge-to-edge phones */
             padding-top: calc(10px + env(safe-area-inset-top, 0px));
           }
-          .modal-head .loc { font-size: 9px; letter-spacing: .18em; }
-          .modal-head .counter { font-size: 9px; }
+          .modal-head .loc { font-size: 9px; letter-spacing: .16em; flex-shrink: 0; }
+          .modal-head .type-badge { flex-shrink: 0; }
+          .modal-head .counter { font-size: 9px; flex-shrink: 0; }
           /* Big obvious close button on mobile */
           .close-btn {
             height: 36px;

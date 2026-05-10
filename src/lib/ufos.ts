@@ -46,65 +46,69 @@ export interface UfoSpec {
 }
 
 export const UFO_POOL: UfoSpec[] = [
+  // All flying saucers, in dark-silver / gunmetal tones — the "pill" tic-tac
+  // didn't read as a spaceship, and pale near-white bodies wash out on small
+  // screens. `driftSpeed` is the baseline cruise speed; the renderer makes
+  // them wander sporadically and jet away if the cursor gets near.
   {
     kind: "saucer",
-    color: "#cdd6e1", // brushed silver
-    glowIntensity: 0.6,
+    color: "#a9b3c0", // brushed silver
+    glowIntensity: 0.55,
     scale: 1.0,
     latRange: [-45, 45],
     lngRange: [-180, 180],
     altitude: 0.22,
-    lifespan: 13,
+    lifespan: 15,
     spinSpeed: 0.9,
-    driftSpeed: 2.8,
-  },
-  {
-    kind: "saucer",
-    color: "#eef2f7", // bright chrome white
-    glowIntensity: 0.7,
-    scale: 0.85,
-    latRange: [-40, 40],
-    lngRange: [-180, 180],
-    altitude: 0.25,
-    lifespan: 12,
-    spinSpeed: 1.25,
     driftSpeed: 3.0,
   },
   {
     kind: "saucer",
-    color: "#9aa5b3", // gunmetal / titanium (darker, reads as a bigger ship)
-    glowIntensity: 0.55,
-    scale: 1.15,
+    color: "#8a94a2", // gunmetal / titanium
+    glowIntensity: 0.5,
+    scale: 1.12,
     latRange: [-42, 42],
     lngRange: [-180, 180],
     altitude: 0.21,
-    lifespan: 14,
+    lifespan: 16,
     spinSpeed: 0.7,
-    driftSpeed: 2.6,
+    driftSpeed: 2.7,
   },
   {
-    kind: "tictac",
-    color: "#dde3ec", // pale steel
-    glowIntensity: 0.5,
-    scale: 1.0,
-    latRange: [-35, 35],
+    kind: "saucer",
+    color: "#6f7884", // dark steel
+    glowIntensity: 0.45,
+    scale: 0.92,
+    latRange: [-50, 50],
     lngRange: [-180, 180],
     altitude: 0.24,
-    lifespan: 11,
-    spinSpeed: 0.4,
-    driftSpeed: 5.5, // tic-tacs move noticeably faster
+    lifespan: 13,
+    spinSpeed: 1.15,
+    driftSpeed: 3.4,
   },
   {
-    kind: "tictac",
-    color: "#b3bcc8", // pewter
+    kind: "saucer",
+    color: "#9ba5b2", // pewter-silver
     glowIntensity: 0.5,
-    scale: 0.85,
-    latRange: [-30, 30],
+    scale: 1.0,
+    latRange: [-38, 38],
     lngRange: [-180, 180],
-    altitude: 0.27,
-    lifespan: 11,
-    spinSpeed: 0.3,
-    driftSpeed: 6.2,
+    altitude: 0.26,
+    lifespan: 14,
+    spinSpeed: 0.85,
+    driftSpeed: 3.1,
+  },
+  {
+    kind: "saucer",
+    color: "#5f6874", // charcoal silver
+    glowIntensity: 0.4,
+    scale: 1.06,
+    latRange: [-35, 35],
+    lngRange: [-180, 180],
+    altitude: 0.23,
+    lifespan: 13,
+    spinSpeed: 1.0,
+    driftSpeed: 3.6,
   },
 ];
 
