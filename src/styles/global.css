@@ -702,14 +702,24 @@ body::after {
 /* a type chip currently driving an open rail gets a stronger ring */
 .chip.open { box-shadow: 0 0 12px rgba(106,255,200,.4) inset, 0 0 8px rgba(106,255,200,.3); }
 
-/* Mobile: panel spans the width but only ~half the height — globe shows below. */
+/* Mobile: a slim panel docked to the bottom (over the dock) so the top ~58% of
+   the screen stays globe — you can watch the camera fly to a pin as you scroll. */
 @media (max-width: 767px) {
   .pin-rail {
-    left: 8px; right: 8px;
-    top: 108px;
+    left: 0; right: 0;
+    top: auto;
+    bottom: 0;
     width: auto;
-    height: 50vh;
+    height: 40vh;
+    border-radius: 14px 14px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  /* a small "active" zone near the top of the slim panel, with a modest bottom
+     pad so the last card can still scroll up into it */
+  .pin-rail-list { padding-bottom: 22vh; }
 }
 
 /* ============================================================ */

@@ -519,11 +519,31 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
                   <span className="sheet-sub-text">
                     {rec.agency}
                     {rec.year ? ` · ${rec.year}` : ""}
-                    {records.length > 1 && (
-                      <span className="sheet-counter"> · {idx + 1}/{records.length}</span>
-                    )}
                   </span>
                 </div>
+                {records.length > 1 && (
+                  <div className="sheet-cycle">
+                    <button
+                      type="button"
+                      onClick={() => setIdx((i) => Math.max(0, i - 1))}
+                      disabled={idx === 0}
+                      aria-label="Previous record at this location"
+                    >
+                      ‹ PREV
+                    </button>
+                    <span className="sheet-cycle-count">
+                      RECORD {idx + 1} OF {records.length} HERE
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIdx((i) => Math.min(records.length - 1, i + 1))}
+                      disabled={idx === records.length - 1}
+                      aria-label="Next record at this location"
+                    >
+                      NEXT ›
+                    </button>
+                  </div>
+                )}
               </div>
               {sheetState === "peek" && (
                 <button type="button" className="sheet-readmore" onClick={() => applyState("full")}>
@@ -940,6 +960,46 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
             white-space: nowrap;
           }
           .sheet-counter { color: var(--color-hud); }
+
+          /* multi-record location: a clear PREV / "RECORD n OF m HERE" / NEXT row,
+             visible in the peek state so you don't have to expand to flip records */
+          .sheet-cycle {
+            display: flex;
+            align-items: stretch;
+            gap: 6px;
+            margin-top: 9px;
+          }
+          .sheet-cycle button {
+            flex: 0 0 auto;
+            background: rgba(106,255,200,.08);
+            border: 1px solid rgba(106,255,200,.4);
+            color: var(--color-hud);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .14em;
+            padding: 7px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+          }
+          .sheet-cycle button:disabled { opacity: .3; cursor: not-allowed; }
+          .sheet-cycle button:not(:disabled):active { background: rgba(106,255,200,.2); }
+          .sheet-cycle-count {
+            flex: 1 1 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 9.5px;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+            color: var(--color-hud);
+            background: rgba(106,255,200,.05);
+            border: 1px dashed rgba(106,255,200,.3);
+            border-radius: 3px;
+            padding: 4px 6px;
+            line-height: 1.2;
+          }
 
           .sheet-readmore {
             display: block;

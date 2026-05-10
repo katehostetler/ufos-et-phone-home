@@ -395,11 +395,12 @@ export default function GlobeApp({ records }: Props) {
   );
   const pointRadius = useCallback(
     (d: any) => {
-      // Generous invisible hit-volume — ~2x the bead — so hovering/tapping near
-      // a pin registers without pixel-perfect aim. Transparent, so the bigger
-      // target is invisible. Kept moderate so dense clusters don't mis-target.
-      const base = (d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * 2.0;
-      return isTouch ? base * PUSHPIN.touchScale : base;
+      // Invisible (transparent) hit-volume around each pin, so you don't need
+      // pixel-perfect aim. Generous on desktop, much fatter on touch — a finger
+      // tap covers a lot of screen, and with one pin per location there are no
+      // neighbours to fight over.
+      const beadR = d.location.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius;
+      return beadR * (isTouch ? 5.5 : 2.2);
     },
     [isTouch],
   );
