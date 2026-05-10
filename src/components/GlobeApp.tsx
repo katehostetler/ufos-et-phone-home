@@ -128,26 +128,6 @@ export default function GlobeApp({ records }: Props) {
     }
   }, []);
 
-  // when the queue's active record changes, fly the globe to its pin (if any)
-  // and light that pin up so it's obvious which one you were moved to
-  const onQueueActiveChange = useCallback(
-    (rec: Record) => {
-      if (!rec.location || !globeRef.current) return;
-      if (rec.location.name === "Moon") {
-        // lunar record — pull the camera back so the orbiting Moon is in frame
-        globeRef.current.pointOfView({ altitude: 3.2 }, 900);
-        highlightPin(null); // lunar records aren't Earth pins
-        return;
-      }
-      globeRef.current.pointOfView(
-        { lat: rec.location.lat, lng: rec.location.lng, altitude: 1.7 },
-        900,
-      );
-      highlightPin(rec.id);
-    },
-    [highlightPin],
-  );
-
   // Clear the pin beacon whenever the PinRail closes (by ✕, by clicking the
   // globe, or by toggling its chip off).
   useEffect(() => {
@@ -304,15 +284,65 @@ export default function GlobeApp({ records }: Props) {
   // dataset of Earth pins — every record with a location, EXCEPT the lunar ones
   // (which live on the Moon). No per-type filtering — the BROWSE PINS chips open
   // the PinRail browser instead of toggling visibility.
-  const points = useMemo(
-    () => records.filter((r) => r.hasLocation && r.location && r.location.name !== "Moon"),
-    [records],
-  );
+  //
+  // Records that share a location would otherwise stack into one overlapping
+  // pin; we fan co-located ones out into a little ring around the shared point
+  // so each colour is visible. The offset is purely cosmetic — `_pinLat/_pinLng`
+  // are what the pushpin / hit-target / ring use; the records' real `location`
+  // is untouched, so click-grouping ("all records at this place") still works.
+  const points = useMemo(() => {
+    const located = records.filter((r) => r.hasLocation && r.location && r.location.name !== "Moon");
+    const byLoc = new Map<string, Record[]>();
+    for (const r of located) {
+      const key = r.location!.name;
+      const arr = byLoc.get(key);
+      if (arr) arr.push(r);
+      else byLoc.set(key, [r]);
+    }
+    return located.map((r) => {
+      const sibs = byLoc.get(r.location!.name)!;
+      const lat = r.location!.lat;
+      const lng = r.location!.lng;
+      if (sibs.length <= 1) return { ...r, _pinLat: lat, _pinLng: lng };
+      const n = sibs.length;
+      const i = sibs.indexOf(r);
+      const radius = 0.5 + 0.2 * (n - 1); // degrees of arc — small ring
+      const ang = (2 * Math.PI * i) / n + 0.45; // a touch of rotation for variety
+      const lngScale = 1 / Math.max(0.2, Math.cos((lat * Math.PI) / 180)); // keep the spread isotropic
+      return {
+        ...r,
+        _pinLat: lat + radius * Math.sin(ang),
+        _pinLng: lng + radius * Math.cos(ang) * lngScale,
+      };
+    });
+  }, [records]);
 
-  // ring data for videos (pulses)
-  const rings = useMemo(
-    () => records.filter((r) => r.hasLocation && r.location && r.mediaType === "vid" && r.location.name !== "Moon"),
-    [records],
+  // ring data for videos (pulses) — uses the same fanned-out positions
+  const rings = useMemo(() => points.filter((p) => p.mediaType === "vid"), [points]);
+
+  // when the queue's active record changes, fly the globe to its (fanned-out)
+  // pin and light that pin up so it's obvious which one you were moved to
+  const onQueueActiveChange = useCallback(
+    (rec: Record) => {
+      if (!rec.location || !globeRef.current) return;
+      if (rec.location.name === "Moon") {
+        // lunar record — pull the camera back so the orbiting Moon is in frame
+        globeRef.current.pointOfView({ altitude: 3.2 }, 900);
+        highlightPin(null); // lunar records aren't Earth pins
+        return;
+      }
+      const p = points.find((x) => x.id === rec.id);
+      globeRef.current.pointOfView(
+        {
+          lat: p?._pinLat ?? rec.location.lat,
+          lng: p?._pinLng ?? rec.location.lng,
+          altitude: 1.7,
+        },
+        900,
+      );
+      highlightPin(rec.id);
+    },
+    [highlightPin, points],
   );
 
   const openLocationModal = useCallback(
@@ -357,8 +387,8 @@ export default function GlobeApp({ records }: Props) {
   // whenever its identity changes — so an inline arrow here would rebuild every
   // pushpin mesh on every GlobeApp re-render (e.g. opening a modal). Keep them
   // stable; only `isTouch` actually affects them.
-  const pointLat = useCallback((d: any) => d.location.lat, []);
-  const pointLng = useCallback((d: any) => d.location.lng, []);
+  const pointLat = useCallback((d: any) => d._pinLat ?? d.location.lat, []);
+  const pointLng = useCallback((d: any) => d._pinLng ?? d.location.lng, []);
   const pointAltitude = useCallback(
     (d: any) => pushpinAltitude({ regional: d.location.regional, touch: isTouch }),
     [isTouch],
@@ -404,7 +434,9 @@ export default function GlobeApp({ records }: Props) {
   );
   const customThreeObjectUpdate = useCallback((obj: any, d: any) => {
     if (!globeRef.current) return;
-    const surf = (globeRef.current as any).getCoords(d.location.lat, d.location.lng, 0);
+    const lat = d._pinLat ?? d.location.lat;
+    const lng = d._pinLng ?? d.location.lng;
+    const surf = (globeRef.current as any).getCoords(lat, lng, 0);
     obj.position.set(surf.x, surf.y, surf.z);
     // After lookAt + rotateX(-90°), local +Y points radially outward — matching
     // the pushpin geometry built from y=0 (surface) upward.
