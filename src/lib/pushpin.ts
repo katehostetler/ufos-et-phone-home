@@ -7,15 +7,17 @@ import * as THREE from "three";
  */
 const GLOBE_RADIUS = 100;
 
-/** Tunable geometry for the map-style pushpin markers. (Small — the bead is just
- *  a marker; the clickable hit-volume is a separate, much larger transparent
- *  sphere set by `pointRadius` in GlobeApp.) */
+/** Tunable geometry for the flat map-style markers. (Small + low — the bead is
+ *  just a marker; the clickable hit-volume is a separate, much larger
+ *  transparent sphere set by `pointRadius` in GlobeApp. `customThreeObject`
+ *  scales the whole pin up for locations with many records.) */
 export const PUSHPIN = {
-  needleRadius: 0.1, // chrome shaft radius (world units)
+  needleRadius: 0.05, // tiny chrome stub (world units)
   beadRadius: 0.72,
   beadRadiusRegional: 0.92,
-  altitude: 0.04, // bead floats this high (fraction of globe radius)
-  altitudeRegional: 0.05,
+  beadFlatten: 0.45, // bead y-scale — a low dome / button, not a ball
+  altitude: 0.013, // marker sits this high above the surface (fraction of globe radius)
+  altitudeRegional: 0.016,
   needleColor: 0xb8c0c8,
   touchScale: 1.3, // pins pumped up a little on touch devices
 } as const;
@@ -26,17 +28,18 @@ export interface PushpinOpts {
   touch?: boolean;
 }
 
-/** The bead altitude (fraction of globe radius) for a given record, incl. touch pump. */
+/** The marker altitude (fraction of globe radius) for a record, incl. touch pump. */
 export function pushpinAltitude(opts: { regional?: boolean; touch?: boolean }): number {
   const k = opts.touch ? PUSHPIN.touchScale : 1;
   return (opts.regional ? PUSHPIN.altitudeRegional : PUSHPIN.altitude) * k;
 }
 
 /**
- * A map-style pushpin as a THREE.Group: a thin glossy chrome needle along the
- * group's local +Y axis (y=0 at the globe surface, rising to the bead) topped
- * by a glossy, media-type-colored bead sphere. The caller positions the group
- * at the surface point and rotates it so local +Y points radially outward.
+ * A flat map-style marker as a THREE.Group: a tiny chrome stub along the
+ * group's local +Y axis (y=0 at the globe surface) topped by a flattened,
+ * glossy, media-type-coloured "button". The caller positions the group at the
+ * surface point and rotates it so local +Y points radially outward — so the
+ * flattened button lies (roughly) parallel to the surface, like a dot on a map.
  */
 export function makePushpin(opts: PushpinOpts): THREE.Group {
   const g = new THREE.Group();
@@ -45,29 +48,32 @@ export function makePushpin(opts: PushpinOpts): THREE.Group {
   const beadR = (opts.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * k;
   const needleR = PUSHPIN.needleRadius * (opts.touch ? 1.3 : 1);
 
-  const needle = new THREE.Mesh(
-    new THREE.CylinderGeometry(needleR, needleR, len, 10, 1, false),
-    new THREE.MeshPhongMaterial({
-      color: PUSHPIN.needleColor,
-      shininess: 100,
-      specular: new THREE.Color(0xffffff),
-    }),
-  );
-  needle.position.y = len / 2; // CylinderGeometry is centered on its origin; shift to span 0..len
-  g.add(needle);
+  if (len > 0.01) {
+    const needle = new THREE.Mesh(
+      new THREE.CylinderGeometry(needleR, needleR, len, 8, 1, false),
+      new THREE.MeshPhongMaterial({
+        color: PUSHPIN.needleColor,
+        shininess: 100,
+        specular: new THREE.Color(0xffffff),
+      }),
+    );
+    needle.position.y = len / 2; // CylinderGeometry is centred on its origin; span 0..len
+    g.add(needle);
+  }
 
   const color = new THREE.Color(opts.color);
-  const defaultEmissive = color.clone().multiplyScalar(0.14); // keep pins legible on the night side
+  const defaultEmissive = color.clone().multiplyScalar(0.16); // keep markers legible on the night side
   const bead = new THREE.Mesh(
-    new THREE.SphereGeometry(beadR, 22, 22),
+    new THREE.SphereGeometry(beadR, 20, 14),
     new THREE.MeshPhongMaterial({
       color: color.clone(),
-      shininess: 80,
+      shininess: 70,
       specular: new THREE.Color(0xffffff),
       emissive: defaultEmissive.clone(),
     }),
   );
-  bead.position.y = len + beadR * 0.1; // perch the bead just above the needle's tip
+  bead.scale.set(1, PUSHPIN.beadFlatten, 1); // flatten into a low button
+  bead.position.y = len + beadR * PUSHPIN.beadFlatten * 0.5;
   g.add(bead);
 
   // Stash the bead + its default look so callers (the PinRail "you're being
