@@ -257,7 +257,7 @@ body::after {
 }
 
 /* ⓘ ABOUT chip — bottom-right corner (mirrors the HALL OF FAME chip on the left) */
-.info-chip {
+.chip.info-chip {
   position: fixed;
   right: 12px;
   bottom: 64px;
@@ -267,17 +267,26 @@ body::after {
   border-color: rgba(106,255,200,.5);
   background: rgba(106,255,200,.07);
 }
-.info-chip:hover,
-.info-chip:focus-visible {
+.chip.info-chip:hover,
+.chip.info-chip:focus-visible {
   background: rgba(106,255,200,.16);
   box-shadow: 0 0 12px rgba(106,255,200,.35);
 }
-.info-chip .info-glyph { font-size: 1.35em; line-height: 0; vertical-align: -2px; margin-right: 2px; }
+.chip.info-chip .info-glyph { font-size: 1.35em; line-height: 1; }
 @media (max-width: 767px) {
-  /* icon-only on mobile */
-  .info-chip { bottom: 60px; right: 8px; padding: 6px 9px; }
-  .info-chip .info-text { display: none; }
-  .info-chip .info-glyph { font-size: 16px; margin-right: 0; }
+  /* icon-only — a clean square box around the ⓘ */
+  .chip.info-chip {
+    bottom: 60px; right: 8px;
+    width: 34px; height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    gap: 0;
+  }
+  .chip.info-chip .info-text { display: none; }
+  .chip.info-chip .info-glyph { font-size: 18px; line-height: 1; margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .hof-chip { animation: none; }
