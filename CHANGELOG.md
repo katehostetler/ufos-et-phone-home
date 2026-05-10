@@ -86,3 +86,7 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 - **Higher-res Earth** — swapped the 2048×1024 night texture for a mirrored 3600×1800 NASA VIIRS night-earth (`public/textures/earth-night.jpg`, ~0.8 MB) so it stays detailed when zoomed in. City-light twinkle cranked up + reworked (more of the lit landmass shimmers, with occasional sharper "surges" on the brightest cities).
 - **Info chip**: it's now a plain lowercase `i` (the `.chip` `text-transform: uppercase` was making it look capital), in a proper 26×26 square box the same height as the `★ HALL OF FAME` chip. `▦ BROWSE GALLERY` in the dock is one line again (unstacked) now that there's room.
 - RecordModal mobile header spacing fixed so the `1 / 8` counter doesn't get clipped by the type badge.
+
+### Added (going public)
+- `LICENSE` — MIT.
+- Rewrote `README.md` for public consumption: what the project is, how to run it, how the data pipeline works, project structure, and a license/credits note clarifying the gov documents are public domain. (Tone: a declassified file with a sense of humour.)
