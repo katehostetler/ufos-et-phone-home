@@ -189,6 +189,15 @@ async function scrapeDvidsMp4(id, cache) {
 }
 
 function detectMediaType(row) {
+  // Some records ARE photographs but the government uploaded them as PDFs (a
+  // scanned photo saved as a PDF page), so the CSV's "Type" column says PDF.
+  // We categorize by what the thing IS, not its container format — so these
+  // get treated as photos (cyan pin, "PHOTO" badge, filed under /photos).
+  const title = (row['Title'] || '').trim();
+  if (/^FBI Photo \b/i.test(title) || /\bcomposite sketch\b/i.test(title) || /\bphotograph\b/i.test(title)) {
+    return 'img';
+  }
+
   const t = (row['Type'] || '').trim().toUpperCase();
   if (t === 'VID') return 'vid';
   if (t === 'IMG') return 'img';
@@ -367,7 +376,14 @@ async function main() {
       r.thumbnailUrl.includes('war.gov/medialink'),
   );
   const fullImagesToMirror = records.filter(
-    (r) => r.mediaType === 'img' && r.assetUrl && r.assetUrl.includes('war.gov/medialink'),
+    (r) =>
+      r.mediaType === 'img' &&
+      r.assetUrl &&
+      r.assetUrl.includes('war.gov/medialink') &&
+      // skip "photo records" whose source is actually a PDF — there's no full-size
+      // image to mirror; the modal shows the (mirrored) thumbnail JPG and links the
+      // PDF as the "source" instead.
+      /\.(jpe?g|png|gif|webp)$/i.test(new URL(r.assetUrl).pathname),
   );
 
   if (toMirror.length + fullImagesToMirror.length > 0) {

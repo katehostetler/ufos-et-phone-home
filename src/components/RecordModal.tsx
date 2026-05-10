@@ -405,10 +405,12 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           allowFullScreen
           title={rec.title}
         />
-      ) : rec.mediaType === "img" && rec.assetUrl ? (
+      ) : rec.mediaType === "img" && rec.assetUrl && /\.(jpe?g|png|gif|webp)(\?|#|$)/i.test(rec.assetUrl) ? (
         <img src={rec.assetUrl} alt={rec.title} />
       ) : rec.thumbnailUrl ? (
-        <img src={rec.thumbnailUrl} alt={`${rec.title} thumbnail`} />
+        // photos whose only source is a PDF (FBI scans etc.) show the mirrored
+        // thumbnail JPG here; the source PDF is the "VIEW SOURCE PDF →" action
+        <img src={rec.thumbnailUrl} alt={`${rec.title}`} />
       ) : (
         <div className="modal-hero-placeholder">No preview available</div>
       )}
@@ -468,9 +470,9 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           <a className="action primary" href={rec.assetUrl} target="_blank" rel="noopener">
             {rec.mediaType === "vid"
               ? "OPEN ON DVIDS →"
-              : rec.mediaType === "img"
-              ? "OPEN FULL IMAGE →"
-              : "VIEW SOURCE PDF →"}
+              : /\.pdf(\?|#|$)/i.test(rec.assetUrl)
+              ? "VIEW SOURCE PDF →"
+              : "OPEN FULL IMAGE →"}
           </a>
         )}
         <a className="action" href={rec.sourcePage} target="_blank" rel="noopener">
