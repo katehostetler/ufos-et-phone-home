@@ -1,15 +1,40 @@
 # Handoff — UFOs / ET Phone Home
 
-Pick-up doc after context clear. Last updated 2026-05-08 (evening — homepage polish session).
+Pick-up doc after context clear. Last updated 2026-05-09 (long polish/iteration session).
 
 ## What this is
 
 Spy-movie-styled archive of the war.gov 5/8/26 UAP release. 3D rotating globe homepage with colored pins per record, click-through to inline video / photo / PDF preview. Built from scratch in this repo.
 
-- **Repo:** https://github.com/katehostetler/ufos-et-phone-home (private)
-- **Prod URL:** `et-phone-home.pages.dev` (Cloudflare Pages, auto-deploys on push to `main`)
-- **Stack:** Astro 6 + React 19 + Tailwind 4 + react-globe.gl (Three.js) + Pagefind (eventual)
-- **Source data:** `data/uap-csv.csv` cached from war.gov; build script geocodes + scrapes thumbnails/MP4s
+- **Repo:** https://github.com/katehostetler/ufos-et-phone-home — **PUBLIC** (MIT licensed; Kate explicitly chose to make it public despite the "private by default" CLAUDE.md rule)
+- **Prod URL:** `et-phone-home.pages.dev` (Cloudflare Pages, auto-deploys on push to `main`; builds take ~2–4 min because the build re-fetches the war.gov CSV)
+- **Stack:** Astro 6 + React 19 + Tailwind 4 + react-globe.gl (Three.js) + Vitest. Pages Functions for `/api/tts`.
+- **Source data:** `data/uap-csv.csv` cached from war.gov; `scripts/build-records.mjs` geocodes + scrapes thumbnails/MP4s + validates `featured.json`. Build deps: `node scripts/build-records.mjs && astro build`.
+- **Working notes from this session:** Kate runs this fast/continuous-deploy; she gives a stream of small UI tweaks, tests on her iPhone against prod (not localhost — localhost from her phone never works; the LAN dev URL `npm run dev -- --host` does). She wants UI things eyeball-verified, not just diff-checked. The HUD palette is green-cyan; "ET PHONE HOME" + Hall of Fame are purple (`--color-hof: #d4b3ff`); UFOs are dark silver.
+
+## 2026-05-09 session — what shipped (on top of the 5/8 state below)
+
+- **Glossy 3D pushpin markers** (`src/lib/pushpin.ts` `makePushpin()` → THREE.Group: chrome needle + glossy media-coloured bead) via `customLayerData`; invisible `pointsData` is the hit-target (generous ~2× radius). Hovered pin "jumps" (grows 1.3×) via `onPointHover` → `pinMeshesRef` Map.
+- **City-light twinkle** — `src/lib/globeShimmer.ts` patches the globe material's fragment shader; intensity 0.5, per-cell + occasional "surge". Earth texture swapped to a mirrored 3600×1800 NASA VIIRS night-earth (`public/textures/earth-night.jpg`) + max anisotropic filtering for sharpness when zoomed.
+- **Hall of Fame** — `★ HALL OF FAME` chip (bottom-left, purple) → `HallOfFameOverlay` (10 curated wildest records, `src/data/featured.json` + `src/lib/featured.ts`; build validates the list). Cards dispatch `open-record` → `GlobeApp` flies the globe + opens `RecordModal`.
+- **PinRail** (`src/components/PinRail.tsx`) — the top "⏵ BROWSE PINS" chips no longer toggle pin visibility; they open a left-docked panel (~36vw × ~60vh desktop / full-width × ~50vh mobile, globe stays visible) of tall vertical cards; scrolling makes the centered card "active" → globe flies there; click → RecordModal.
+- **Floating UFOs** — `FloatingUfos.tsx` + `src/lib/ufos.ts`. Dark-silver flying saucers only (no orbs, no tic-tac). ≤2 at once, spawner won't reuse an active colour. Velocity-based **sporadic** wander + **jets away** when the cursor gets near (`FLEE_NDC_RADIUS`). Click → `TransmissionModal` (8 cryptic *fictional* fragments). Hover-grow.
+- **Orbiting Moon** — `LunarMoon.tsx`. The 8 Apollo lunar records (no longer plotted on Earth — `points` excludes `location.name === "Moon"`) live on a small textured Moon (`public/textures/moon.jpg`) that slow-orbits Earth (~5min, no spin). Pins on it = `makePushpin()` scaled down, **clustered** in one region, **media-type-coloured**, with invisible hit-spheres. Click a Moon pin → opens the whole lunar set starting there; click the Moon body → all 8.
+- **RecordModal** — redesigned to a **left-docked panel** (~60vw, globe visible/spinning behind on desktop; full-screen on mobile), scrolls as ONE unit (no skinny inner box), sticky header so `BACK TO GLOBE` / `BACK TO GALLERY` stays reachable. Stills show at natural aspect (capped); video keeps 16/9. `closeLabel` prop. **All overlays (RecordModal, QueuePanel, TransmissionModal, HallOfFameOverlay) are portalled to `document.body`** (`src/components/Portal.tsx`) so they sit above the Hud — they were rendering *under* it before because `.globe-page` is `position: fixed` (own stacking context).
+- **HUD / chrome**: dropped the BROWSE mini-nav; `DECLASSIFIED · RELEASE_01` sits alone in the top-right corner; `ⓘ ABOUT` moved to a bottom-right chip (lowercase `i`, 26×26 square on mobile, mirrors the HALL OF FAME chip). Bottom dock = `▦ BROWSE GALLERY` link (→ new `/gallery` page, all 161 records) + icon-only colour-coded `▶ ⊡ ▤` chips (no dot swatches); the LOCATION UNKNOWN dock chip was removed. Type badges (on cards) got a near-solid dark backing so they read on white PDF thumbnails. Touch-aware instruction banner.
+- **TTS** — `LISTEN` button: better browser-voice selection (Google cloud voices first, etc.), and an ElevenLabs proxy at `functions/api/tts.js` (uses `ELEVENLABS_API_KEY` Cloudflare secret — **Kate hasn't set the secret yet**; until she does, it 503s and the browser voice is used). "voice · ElevenLabs" credit shown when active; noted on /about.
+- `/about` has a `SOURCE · WAR.GOV/UFO →` + `CREATOR · WITHKATE.AI →` (https://withkate.ai) two-box row.
+- **`LICENSE`** (MIT) added; **`README.md`** rewritten public-facing/snarky. **Vitest** is set up — `npm test` (53 tests across `tests/`).
+
+## Open items / backlog (next session)
+- **Set `ELEVENLABS_API_KEY` in Cloudflare Pages** (Settings → Variables and Secrets, encrypted, Production) → instant good narration. Until then it falls back to the browser voice. Walk Kate through it (she has an ElevenLabs account).
+- Pin hover tooltip flicker on desktop (`.float-tooltip-kap` z-index inside `.scene-container`) — long-standing, still not fixed.
+- A11y pass (keyboard nav / focus traps on the now-many overlays).
+- A `npm run dev -- --host` LAN dev server may still be running from this session (port 4321) — Kate uses it to preview on her phone.
+
+---
+
+# (5/8/26 state — original build, for reference)
 
 ## Current state of `main`
 
