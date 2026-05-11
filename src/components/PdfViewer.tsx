@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy } from "pdfjs-dist";
+import { pdfjsGetDocumentParams } from "@/lib/pdfProxy";
 // `?url` makes Vite emit the bundled pdf.js worker as an asset and hand us its
 // final URL — works in dev and in the production build. (The classic pdf.js +
 // Vite gotcha: a plain `new URL('pdfjs-dist/build/...', import.meta.url)` won't
 // resolve a bare specifier.)
 import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-// Set the worker once at module scope.
+// Set the worker once at module scope. (The WASM image decoders / ICC / fonts
+// are pointed at /pdfjs/... via pdfjsGetDocumentParams below — without that,
+// scanned PDFs render blank.)
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 /** Horizontal breathing room subtracted from the container width before fitting
@@ -31,7 +34,7 @@ export default function PdfViewer({ url }: { url: string }) {
     (async () => {
       let loaded: PDFDocumentProxy;
       try {
-        loaded = await pdfjsLib.getDocument({ url }).promise;
+        loaded = await pdfjsLib.getDocument(pdfjsGetDocumentParams(url)).promise;
       } catch {
         if (!cancelled) setStatus("error");
         return;
