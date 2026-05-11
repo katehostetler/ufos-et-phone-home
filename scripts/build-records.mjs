@@ -1,13 +1,17 @@
 // Builds src/data/records.json from the war.gov UAP CSV.
 //
 // Steps:
-//   1. Try to fetch a fresh CSV from war.gov; fall back to the cached copy at data/uap-csv.csv
+//   1. Read the cached CSV at data/uap-csv.csv (the pinned 8 May 2026 release —
+//      161 records). Set WARGOV_REFRESH=1 to instead pull a fresh CSV from
+//      war.gov and re-cache it (review the diff before committing — war.gov has
+//      silently edited the CSV since launch, e.g. dropping a few duplicate rows,
+//      and the archive is meant to mirror the 161-file release the page states).
 //   2. Parse rows
 //   3. Normalize fields and detect media type (vid|img|pdf)
 //   4. Geocode Incident Location via data/location-lookup.json
 //   5. Write src/data/records.json
 //
-// Re-run any time: `npm run build:data`
+// Re-run any time: `npm run build:data`  (refresh from war.gov: `WARGOV_REFRESH=1 npm run build:data`)
 
 import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -38,7 +42,18 @@ const FETCH_HEADERS = {
   'Sec-Fetch-Site': 'same-origin',
 };
 
+// Number of records the pinned release (and the war.gov page) is documented as
+// having. The default build must reproduce exactly this from the cached CSV; a
+// WARGOV_REFRESH run that produces a different count is flagged loudly below.
+const EXPECTED_RECORD_COUNT = 161;
+
 async function fetchCsv() {
+  // Default: use the pinned cached CSV so the archive always lists the full
+  // documented release. Opt in to a live pull (and review the diff) with
+  // WARGOV_REFRESH=1.
+  if (!process.env.WARGOV_REFRESH) {
+    return readFile(CACHED_CSV, 'utf8');
+  }
   try {
     const r = await fetch(CSV_URL, { headers: FETCH_HEADERS });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -422,6 +437,14 @@ async function main() {
   console.log(`✓ Wrote ${records.length} records to src/data/records.json`);
   console.log(`  vid: ${counts.vid || 0} · img: ${counts.img || 0} · pdf: ${counts.pdf || 0}`);
   console.log(`  mapped: ${counts.mapped || 0} · unmapped: ${counts.unmapped || 0}`);
+  if (records.length !== EXPECTED_RECORD_COUNT) {
+    console.warn(
+      `⚠ Record count is ${records.length}, expected ${EXPECTED_RECORD_COUNT}. ` +
+      (process.env.WARGOV_REFRESH
+        ? `war.gov's CSV has drifted from the pinned release — review the diff to data/uap-csv.csv before committing.`
+        : `the cached CSV no longer matches the documented release — this should not happen on a normal build.`),
+    );
+  }
 
   // --- validate the curated Hall of Fame list ---
   const featuredPath = new URL('../src/data/featured.json', import.meta.url);
