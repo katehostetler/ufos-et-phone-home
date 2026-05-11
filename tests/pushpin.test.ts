@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
+import { makePushpin, pushpinAltitude, pushpinHitAltitude, PUSHPIN } from "@/lib/pushpin";
 import * as THREE from "three";
+
+const GLOBE_RADIUS = 100;
 
 describe("makePushpin", () => {
   it("returns a Group containing a needle (cylinder) and a bead (sphere)", () => {
@@ -79,5 +81,29 @@ describe("pushpinAltitude", () => {
   });
   it("touch mode returns higher altitude than desktop", () => {
     expect(pushpinAltitude({ touch: true })).toBeGreaterThan(pushpinAltitude({}));
+  });
+});
+
+describe("pushpinHitAltitude", () => {
+  // Helper: the radial top (world units above the surface) of the visible marker
+  // — the bead's outer edge — read straight off the mesh makePushpin builds.
+  function visibleMarkerTop(opts: { regional?: boolean; touch?: boolean }): number {
+    const g = makePushpin({ color: "#ff3b3b", ...opts });
+    const bead = g.userData.bead as THREE.Mesh;
+    const beadR = (bead.geometry as THREE.SphereGeometry).parameters.radius;
+    return bead.position.y + beadR * bead.scale.y;
+  }
+
+  for (const opts of [{}, { touch: true }, { regional: true }, { regional: true, touch: true }] as const) {
+    it(`hit-cylinder fully encloses the visible marker (${JSON.stringify(opts)})`, () => {
+      const cylinderTop = pushpinHitAltitude(opts) * GLOBE_RADIUS;
+      expect(cylinderTop).toBeGreaterThan(visibleMarkerTop(opts));
+      // ...and it's taller than the bare needle (the old, too-short behaviour)
+      expect(pushpinHitAltitude(opts)).toBeGreaterThan(pushpinAltitude(opts));
+    });
+  }
+
+  it("touch mode returns a taller hit-cylinder than desktop", () => {
+    expect(pushpinHitAltitude({ touch: true })).toBeGreaterThan(pushpinHitAltitude({}));
   });
 });

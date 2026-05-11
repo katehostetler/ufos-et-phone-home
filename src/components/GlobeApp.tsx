@@ -6,7 +6,7 @@ import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
 import PinRail from "./PinRail";
 import LunarMoon from "./LunarMoon";
-import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
+import { makePushpin, pushpinHitAltitude, PUSHPIN } from "@/lib/pushpin";
 import { applyCityLightShimmer } from "@/lib/globeShimmer";
 import FloatingUfos from "./FloatingUfos";
 import type { Record, MediaType } from "@/types/record";
@@ -461,8 +461,10 @@ export default function GlobeApp({ records }: Props) {
   const pointLat = useCallback((d: any) => d._pinLat ?? d.location.lat, []);
   const pointLng = useCallback((d: any) => d._pinLng ?? d.location.lng, []);
   // All pins the same size, so the hit-target is uniform too (just generous —
-  // much bigger than the bead, extra fat on touch).
-  const pointAltitude = useCallback(() => pushpinAltitude({ touch: isTouch }), [isTouch]);
+  // much bigger than the bead, extra fat on touch). The cylinder is tall enough
+  // to fully enclose the visible marker so a click on the bead always lands in
+  // it, even with the pin near the globe's limb.
+  const pointAltitude = useCallback(() => pushpinHitAltitude({ touch: isTouch }), [isTouch]);
   const pointRadius = useCallback(() => PUSHPIN.beadRadius * (isTouch ? 9 : 3.5), [isTouch]);
   const pointLabel = useCallback(
     (d: any) => {
@@ -489,6 +491,15 @@ export default function GlobeApp({ records }: Props) {
   const customThreeObject = useCallback(
     (d: any) => {
       const m = makePushpin({ color: COLORS[(d._pinType ?? d.mediaType) as MediaType], touch: isTouch });
+      // The visible pushpin must be invisible to the raycaster: clicks/hovers
+      // belong to the transparent pointsData hit-cylinder under it. Otherwise the
+      // bead — which sits closer to the camera than the cylinder — is the nearest
+      // ray hit, so globe.gl treats the click as a "custom layer" hit (which we
+      // don't handle) and onPointClick never fires. Disable raycast on the whole
+      // group + every child.
+      m.traverse((o: THREE.Object3D) => {
+        o.raycast = () => {};
+      });
       pinMeshesRef.current.set(d.location.name, m);
       return m;
     },
