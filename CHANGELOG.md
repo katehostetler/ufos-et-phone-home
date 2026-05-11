@@ -159,3 +159,11 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 
 ### Changed (data pinned to the 161-record release)
 - The data pipeline now reads the **cached `data/uap-csv.csv`** (the 8 May 2026 release — 161 records) by default instead of re-fetching from war.gov on every build. war.gov has quietly edited the live CSV since launch — dropping three duplicate rows (`dow-uap-d23-2`, `dow-uap-d32-2`, `dow-uap-d32-3`) and fixing a couple of links/dates — which had been silently shrinking the deployed archive to 158. The archive is meant to mirror the full 161-file release the war.gov page documents, so it's now pinned there. To pull a fresh CSV and review the diff: `WARGOV_REFRESH=1 npm run build:data`. `build-records.mjs` prints a loud warning if the record count ever moves off 161.
+
+### Added (LOCATION UNKNOWN chip + filter-by-type on the gallery pages)
+- **"LOCATION UNKNOWN · 47" chip** in the globe's filter bar, alongside `VIDEO · 28 / PHOTO · 31 / DOCUMENT · 55` — amber, links to the `/no-location` page. Those three chips count records with a *mappable* location (so they sum to 114, not 161); the 47 records the files give no location for couldn't be discovered from the homepage before. 114 + 47 = 161 now reads at a glance. (On phones the label shortens to "NO LOCATION" and the bar left-aligns + scrolls instead of clipping.)
+- **Filter-by-file-type bar on every gallery page** (`src/components/GalleryFilter.astro`, pure logic in `src/lib/galleryFilter.ts`):
+  - On the mixed-type pages (`/gallery`, `/no-location`) the chips (`ALL / VIDEO / PHOTO / DOCUMENT`, dropping any type with 0 records on that page) filter the grid **in place** via a tiny client script — and the choice is mirrored in the URL hash (`#video` / `#photo` / `#document`) so it's shareable and survives a refresh / back-nav.
+  - On the already-single-type pages (`/videos`, `/photos`, `/files`) the same bar appears in **nav mode** — the chips link to the sibling pages with the current one marked active — so the filter affordance is consistent everywhere.
+  - Clicking a card still opens the in-place record modal (the modal-open delegation and the filter chips don't collide).
+- Tests: `tests/galleryFilter.test.ts` covers the chip-list logic (which chips appear, counts, active state, hrefs) for both modes, plus the hash⇆type maps.

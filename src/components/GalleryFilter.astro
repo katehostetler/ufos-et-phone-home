@@ -1,0 +1,149 @@
+---
+// A "filter by file type" chip row for the gallery pages. Two modes:
+//
+//   mode="inline"  — chips are buttons; a tiny client script hides/shows the
+//                    page's <article class="card vid|img|pdf"> cards in place.
+//                    Used on the mixed-type pages (/gallery, /no-location).
+//   mode="nav"     — chips are links to the per-type pages (the current page's
+//                    chip marked active). Used on the already-single-type pages
+//                    (/videos, /photos, /files) so they carry the same filter
+//                    affordance — picking another type just navigates there.
+//
+// Chips whose count is 0 on this page are dropped in "inline" mode (e.g.
+// /no-location has no videos); "nav" mode always shows the full set.
+import { galleryFilterChips, type FilterMode, type TypeCounts, type FilterKey } from "@/lib/galleryFilter";
+import allRecords from "@/data/records.json";
+import type { Record } from "@/types/record";
+
+interface Props {
+  mode: FilterMode;
+  /** mode="inline": per-type counts within THIS page's record set. */
+  counts?: TypeCounts;
+  /** mode="nav": which type page we're on (omit on /gallery → "all"). */
+  activeType?: FilterKey;
+}
+const { mode, counts, activeType = "all" } = Astro.props;
+
+const recs = allRecords as Record[];
+const effectiveCounts: TypeCounts =
+  mode === "nav" || !counts
+    ? {
+        vid: recs.filter((r) => r.mediaType === "vid").length,
+        img: recs.filter((r) => r.mediaType === "img").length,
+        pdf: recs.filter((r) => r.mediaType === "pdf").length,
+      }
+    : counts;
+
+const chips = galleryFilterChips(mode, effectiveCounts, activeType);
+---
+
+<nav class="gallery-filter" data-mode={mode} aria-label="Filter records by file type">
+  {chips.map((chip) =>
+    mode === "nav" ? (
+      <a
+        href={chip.href}
+        class:list={["gf-chip", `gf-${chip.key}`, { active: chip.active }]}
+        aria-current={chip.active ? "page" : undefined}
+      >
+        {chip.key !== "all" && <span class="gf-swatch"></span>}
+        {chip.label} · {chip.count}
+      </a>
+    ) : (
+      <button
+        type="button"
+        class:list={["gf-chip", `gf-${chip.key}`, { active: chip.active }]}
+        data-filter={chip.key}
+        aria-pressed={chip.active ? "true" : "false"}
+      >
+        {chip.key !== "all" && <span class="gf-swatch"></span>}
+        {chip.label} · {chip.count}
+      </button>
+    ),
+  )}
+</nav>
+
+<script>
+  // Inline type filter for gallery grids. Clicking a chip hides every
+  // <article class="card vid|img|pdf"> that doesn't match (via the `hidden`
+  // attribute → display:none) — "ALL" shows everything. The choice is mirrored in
+  // the URL hash (#video / #photo / #document) so it survives a refresh / back
+  // nav and is shareable. No-ops on pages without an inline filter (the selector
+  // below matches nothing there).
+  import { HASH_FOR_TYPE, TYPE_FOR_HASH, type FilterKey } from "@/lib/galleryFilter";
+
+  const bar = document.querySelector<HTMLElement>(".gallery-filter[data-mode='inline']");
+  if (bar) {
+    const chips = bar.querySelectorAll<HTMLElement>(".gf-chip");
+    const cards = document.querySelectorAll<HTMLElement>("article.card");
+    const apply = (key: FilterKey, writeHash: boolean) => {
+      cards.forEach((el) => {
+        el.hidden = !(key === "all" || el.classList.contains(key));
+      });
+      chips.forEach((chip) => {
+        const on = chip.dataset.filter === key;
+        chip.classList.toggle("active", on);
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      if (writeHash) {
+        const h = key === "all" ? "" : HASH_FOR_TYPE[key];
+        history.replaceState(null, "", h ? `#${h}` : location.pathname + location.search);
+      }
+    };
+    chips.forEach((chip) =>
+      chip.addEventListener("click", () => apply((chip.dataset.filter as FilterKey) ?? "all", true)),
+    );
+    const fromHash = TYPE_FOR_HASH[location.hash.replace(/^#/, "")];
+    if (fromHash) apply(fromHash, false);
+  }
+</script>
+
+<style>
+  .gallery-filter {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .gf-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.65);
+    border-radius: 2px;
+    padding: 5px 12px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .gf-chip:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .gf-swatch {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .gf-vid .gf-swatch { background: var(--color-vid); box-shadow: 0 0 6px var(--color-vid); }
+  .gf-img .gf-swatch { background: var(--color-img); box-shadow: 0 0 6px var(--color-img); }
+  .gf-pdf .gf-swatch { background: var(--color-pdf); box-shadow: 0 0 6px var(--color-pdf); }
+  /* active state — tinted in the type colour (HUD green for ALL) */
+  .gf-chip.active.gf-all { color: var(--color-hud); border-color: rgba(106, 255, 200, 0.55); background: rgba(106, 255, 200, 0.1); }
+  .gf-chip.active.gf-vid { color: var(--color-vid); border-color: rgba(255, 59, 59, 0.55);  background: rgba(255, 59, 59, 0.1); }
+  .gf-chip.active.gf-img { color: var(--color-img); border-color: rgba(90, 215, 255, 0.55); background: rgba(90, 215, 255, 0.1); }
+  .gf-chip.active.gf-pdf { color: var(--color-pdf); border-color: rgba(181, 108, 255, 0.55); background: rgba(181, 108, 255, 0.1); }
+
+  @media (max-width: 767px) {
+    .gallery-filter { gap: 6px; margin-bottom: 18px; }
+    .gf-chip { font-size: 9px; padding: 4px 9px; letter-spacing: 0.08em; gap: 5px; }
+    .gf-swatch { width: 5px; height: 5px; }
+  }
+</style>

@@ -206,14 +206,15 @@ const featured = resolveFeatured(featuredRaw as any, all);
     }
 
     /* Filterbar — raised up close under the DECLASSIFIED stamp so it isn't
-       sitting in the middle of the globe; tight enough that all 3 type chips
-       fit across a 390px screen without horizontal scrolling. */
+       sitting in the middle of the globe. The 4th chip ("LOCATION UNKNOWN") can
+       overflow a narrow phone, so it left-aligns and scrolls horizontally rather
+       than centring (which would clip both ends). */
     :global(.filterbar) {
       top: 28px;
       left: 6px;
       right: 6px;
       transform: none;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 4px;
       padding: 4px 6px;
       overflow-x: auto;
