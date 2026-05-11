@@ -101,29 +101,21 @@ const featured = resolveFeatured(featuredRaw as any, all);
     z-index: 6;
     background: rgba(0,0,0,.45);
     backdrop-filter: blur(6px);
-    padding: 6px 10px 6px 12px;
+    padding: 6px 10px;
     border: 1px solid var(--color-line);
     border-radius: 2px;
-  }
-  :global(.filterbar-label) {
-    font-size: 9px;
-    letter-spacing: .22em;
-    color: var(--color-hud);
-    padding-right: 8px;
-    border-right: 1px solid rgba(106,255,200,.25);
-    margin-right: 2px;
-    flex-shrink: 0;
   }
 
   :global(.globe-stage) {
     position: absolute; inset: 0;
     z-index: 1;
   }
-  /* Keep the rendered globe bright & punchy. The city-light toning (dimmer, less
-     "pin gold") and the deep-navy ocean floor are done in the shader, not here,
-     so the overall image stays as bright as before. */
+  /* The city-light toning (dimmer, less "pin gold") and the deep-navy ocean
+     floor are done in the shader. We dropped the old brightness(1.16) boost
+     here — it was re-brightening the very city lights the shader dims, which
+     kept washing the map pins out. A touch of contrast keeps the globe punchy. */
   :global(.globe-stage canvas) {
-    filter: brightness(1.16) contrast(1.05) saturate(0.92);
+    filter: brightness(1.0) contrast(1.06) saturate(0.9);
   }
 
   /* dock at bottom — opens the in-place gallery/queue browser */
@@ -239,11 +231,6 @@ const featured = resolveFeatured(featuredRaw as any, all);
       gap: 4px;
     }
     :global(.filterbar) .chip .swatch { width: 5px; height: 5px; }
-    :global(.filterbar-label) {
-      font-size: 7.5px;
-      letter-spacing: .12em;
-      padding-right: 6px;
-    }
     /* Dock — sized so the LOCATION UNKNOWN chip fits without horizontal scroll */
     .dock {
       height: 52px;

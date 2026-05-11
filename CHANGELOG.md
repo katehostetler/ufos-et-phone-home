@@ -133,3 +133,14 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 ### Added (going public)
 - `LICENSE` — MIT.
 - Rewrote `README.md` for public consumption: what the project is, how to run it, how the data pipeline works, project structure, and a license/credits note clarifying the gov documents are public domain. (Tone: a declassified file with a sense of humour.)
+
+## 2026-05-10
+
+### Changed (mobile globe polish — pin clarity, dimmer lights, header)
+- **The city lights are a lot dimmer now** — they were washing the location pins out, especially on mobile. The shader patch (`globeShimmer.ts`) now catches a wider band of lit pixels (`smoothstep 0.10→0.55` ⇒ `0.07→0.45`), desaturates them harder (`mix toward luminance 0.48·w ⇒ 0.66·w`) and dims them much further (`*= mix(1.0, 0.50, w) ⇒ mix(1.0, 0.28, w)` — the brightest cities are now ~72% dimmer), and the twinkle no longer flares as bright (`intensity 0.7 ⇒ 0.45`). Also dropped the `brightness(1.16)` boost on the globe canvas in `index.astro` (it was re-brightening the very lights the shader dims) — now `brightness(1.0) contrast(1.06) saturate(0.9)`.
+- **It's obvious which pin you tapped** — clicking/tapping a pin now lights it up (white "beacon" bead + white halo + scaled up — extra-large on touch) for as long as the record panel/sheet is open, and clears it on close. On touch it also recenters the camera on that pin (the bottom sheet covers the lower half of the screen, so a pin tapped down there was simply hidden) — the prior view is restored when you close the sheet, same as before. Desktop's panel docks left with the globe still visible, so the camera stays put there; just the highlight.
+- **`UFOS` and `/ ET PHONE HOME` are the same size now** in the HUD title (was a small subtitle). Their font-size + letter-spacing stay locked together across breakpoints; on the narrowest phones the letter-spacing tightens (and the `DECLASSIFIED` stamp shrinks a hair) so the full title still fits a 390 px screen.
+- **Dropped the `⏵ BROWSE PINS` label** from the type-chip bar over the globe — the three coloured chips (`VIDEO · n`, `PHOTO · n`, `DOCUMENT · n`) read as a pin browser on their own. Removed the now-dead `.filterbar-label` styles.
+
+### Tests
+- `tests/pushpin.test.ts`: added a guard that `makePushpin` keeps exposing `userData.bead` / `userData.halo` / `userData.defaultColor` / `userData.defaultEmissive` / `userData.defaultHaloColor` (the handle the new "selected pin" highlight reaches into to recolour the marker white and put it back).

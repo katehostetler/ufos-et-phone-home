@@ -54,6 +54,23 @@ describe("makePushpin", () => {
     const tBead = ((touch.children[1] as THREE.Mesh).geometry as THREE.SphereGeometry).parameters.radius;
     expect(tBead).toBeGreaterThan(dBead);
   });
+
+  // GlobeApp's "this is the pin you selected" highlight reaches into userData to
+  // recolour the bead/halo white and put them back on close — guard that handle.
+  it("exposes the bead, halo and their default look on userData (the highlight contract)", () => {
+    const g = makePushpin({ color: "#5ad7ff" });
+    expect(g.userData.bead).toBeInstanceOf(THREE.Mesh);
+    expect(g.userData.halo).toBeInstanceOf(THREE.Mesh);
+    expect(g.userData.defaultColor).toBeInstanceOf(THREE.Color);
+    expect(g.userData.defaultEmissive).toBeInstanceOf(THREE.Color);
+    expect(g.userData.defaultHaloColor).toBeInstanceOf(THREE.Color);
+    // the stashed defaults match the materials the pin actually ships with
+    const beadMat = (g.userData.bead as THREE.Mesh).material as THREE.MeshPhongMaterial;
+    expect(beadMat.color.getHex()).toBe(g.userData.defaultColor.getHex());
+    expect(beadMat.emissive.getHex()).toBe(g.userData.defaultEmissive.getHex());
+    const haloMat = (g.userData.halo as THREE.Mesh).material as THREE.MeshBasicMaterial;
+    expect(haloMat.color.getHex()).toBe(g.userData.defaultHaloColor.getHex());
+  });
 });
 
 describe("pushpinAltitude", () => {

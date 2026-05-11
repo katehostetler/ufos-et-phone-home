@@ -34,12 +34,17 @@
     gap: 10px;
     text-decoration: none;
   }
-  /* "UFOS" stays the HUD green; "/ ET PHONE HOME" glows purple. */
-  .logo {
+  /* "UFOS" and "/ ET PHONE HOME" are the same size — UFOS glows HUD green,
+     ET PHONE HOME glows purple. (Keep their font-size + letter-spacing in lock-
+     step in the media queries below so they always match.) */
+  .logo,
+  .logo-sub {
     font-family: var(--font-display);
     font-weight: 900;
     font-size: 18px;
     letter-spacing: .24em;
+  }
+  .logo {
     color: #b8ffe0;
     text-shadow:
       0 0 8px rgba(106,255,200,.9),
@@ -47,8 +52,6 @@
       0 0 36px rgba(106,255,200,.3);
   }
   .logo-sub {
-    font-size: 12px;
-    letter-spacing: .3em;
     color: #e0c8ff;
     text-shadow:
       0 0 8px rgba(199,148,255,.9),
@@ -118,7 +121,6 @@
       gap: 12px;
       padding: 0 38px 0 20px;
     }
-    .logo-sub { font-size: 10px; letter-spacing: .25em; }
     .clock { margin-left: 0; }
     .primary-nav { gap: 10px; }
     .nav-label { display: none; }
@@ -133,8 +135,8 @@
       gap: 6px;
     }
     .brand { gap: 5px; flex-shrink: 1; min-width: 0; }
-    .logo { font-size: 12.5px; letter-spacing: .16em; }
-    .logo-sub { font-size: 8.5px; letter-spacing: .18em; }
+    .logo,
+    .logo-sub { font-size: 12.5px; letter-spacing: .14em; }
     .clock { display: none; }
     .nav-label { display: none; }
     .hud-right { gap: 8px; }
@@ -157,9 +159,12 @@
     }
   }
 
-  /* Very small mobile — drop the stamp's "RELEASE_01" half if things get tight */
+  /* Very small mobile — tighten the title's letter-spacing (keeping both halves
+     the same size) and shrink the stamp so the full "UFOS / ET PHONE HOME" fits */
   @media (max-width: 400px) {
-    .logo-sub { font-size: 8px; letter-spacing: .14em; }
+    .logo,
+    .logo-sub { font-size: 12px; letter-spacing: .08em; }
+    .brand { gap: 4px; }
     .stamp { font-size: 6.5px; padding: 2px 4px; }
     .hud-right { gap: 6px; }
   }
