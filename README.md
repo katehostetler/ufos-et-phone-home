@@ -24,13 +24,13 @@ Everything links back to the original government URLs. Nothing is altered. We ju
 
 ```bash
 npm install
-npm run build:data   # pulls the war.gov CSV, geocodes the locations, mirrors thumbnails (~1 min first run)
+npm run build:data   # builds records.json from the pinned CSV, geocodes locations, mirrors thumbnails (~1 min first run)
 npm run dev          # http://localhost:4321
 npm test             # vitest — pure logic + component behaviour
 npm run build        # production build (re-runs build:data first)
 ```
 
-The data pipeline is idempotent: re-running only fetches *new* records and *new* thumbnails. The CSV cache lives at `data/uap-csv.csv` — delete it to force a fresh pull. (Thumbnails are mirrored locally because Akamai 403s anyone who tries to hotlink them, which is its own kind of cover-up.)
+The archive is pinned to the **8 May 2026 release — 161 records** — so it always lists the full set the war.gov page documents. The CSV manifest is cached at `data/uap-csv.csv` and that's what every build reads. war.gov has quietly edited the live CSV since launch (dropping a few duplicate rows, fixing a couple of links), so to pull a fresh copy and review the diff, run `WARGOV_REFRESH=1 npm run build:data` — the build prints a loud warning if the record count moves off 161. The pipeline is otherwise idempotent: re-running only fetches *new* thumbnails. (Thumbnails are mirrored locally because Akamai 403s anyone who tries to hotlink them, which is its own kind of cover-up.)
 
 Deployed via Cloudflare Pages — pushes to `main` auto-build and ship. The `LISTEN`-aloud feature uses ElevenLabs if an `ELEVENLABS_API_KEY` is set in the Pages environment, and quietly falls back to the browser's built-in robot voice if not.
 
