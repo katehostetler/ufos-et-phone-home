@@ -26,6 +26,11 @@ function safeHref(u: string): string {
 const SHEET_MAX_WIDTH = 767;
 /** Fraction of the screen height left uncovered (globe visible) in the "peek" rest state. */
 const PEEK_UNCOVERED = 0.54;
+/** px the pointer must travel before a press becomes a sheet drag (vs. a tap). */
+const DRAG_THRESHOLD = 6;
+/** From "peek", an upward drag this far (or with any upward velocity) on release
+ *  snaps to "full" — so a gentle swipe-up expands without needing a hard flick. */
+const PEEK_EXPAND_PX = 20;
 
 // Once we learn /api/tts isn't available (404 on a static deploy, or quota
 // exhausted, etc.) stop hammering it and just use the browser voice for the
@@ -77,6 +82,9 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     lastY: number;
     lastT: number;
     vel: number;
+    /** false until the pointer has moved past DRAG_THRESHOLD — lets a tap on a
+     *  draggable control (e.g. the "↑ swipe up" prompt) still fire its click. */
+    committed: boolean;
   } | null>(null);
 
   const rec = records[idx];
@@ -156,6 +164,12 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     (e: PointerEvent) => {
       const d = dragRef.current;
       if (!d) return;
+      if (!d.committed) {
+        // still might be a tap — don't move the sheet until we clear the threshold
+        if (Math.abs(e.clientY - d.startClientY) < DRAG_THRESHOLD) return;
+        d.committed = true;
+        setDragging(true);
+      }
       const { sheetH } = measure();
       const delta = e.clientY - d.startClientY;
       const next = Math.max(0, Math.min(sheetH, d.startTranslate + delta));
@@ -177,9 +191,16 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     const d = dragRef.current;
     dragRef.current = null;
     setDragging(false);
-    if (!d) return;
+    // Never moved → it was a tap. Don't snap the sheet; let the click (if the
+    // press was on a button like the "↑ swipe up" prompt) do its thing.
+    if (!d || !d.committed) return;
     const { peekTranslateY, dismissTranslateY } = measure();
     const fromState: SheetState = d.startTranslate <= peekTranslateY * 0.5 ? "full" : "peek";
+    // From "peek", any clear upward intent expands — no hard flick required.
+    if (fromState === "peek" && (d.cur < d.startTranslate - PEEK_EXPAND_PX || d.vel < -0.15)) {
+      applyState("full");
+      return;
+    }
     const result = pickSnapState({
       translateY: d.cur,
       velocityY: d.vel,
@@ -197,9 +218,14 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
   const onDragStart = useCallback(
     (e: React.PointerEvent) => {
       if (!isSheet) return;
-      // Don't start a drag from an interactive control inside the header (the
-      // close button) — let it receive its click.
-      if ((e.target as HTMLElement).closest("button, a")) return;
+      // In "full", the body scrolls — only start a sheet-drag from the grabber
+      // handle (this handler isn't wired to .sheet-scroll while full), so this
+      // path only fires from the handle there. In "peek" the body isn't
+      // scrollable, so a press anywhere on it can drag the sheet.
+      // Don't hijack interactive controls (the close ✕, the prev/next cycle
+      // buttons) — but the "↑ swipe up" prompt IS draggable as well as tappable.
+      const ctrl = (e.target as HTMLElement).closest("button, a");
+      if (ctrl && !ctrl.classList.contains("sheet-readmore")) return;
       const start = translateForState(sheetStateRef.current, measure().peekTranslateY);
       dragRef.current = {
         startClientY: e.clientY,
@@ -208,8 +234,8 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
         lastY: e.clientY,
         lastT: performance.now(),
         vel: 0,
+        committed: false,
       };
-      setDragging(true);
       window.addEventListener("pointermove", onDragMove);
       window.addEventListener("pointerup", onDragEnd);
       window.addEventListener("pointercancel", onDragEnd);
@@ -592,7 +618,13 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
               <div className="sheet-grabber" aria-hidden="true" />
               {headerEl}
             </div>
-            <div className={`sheet-scroll${sheetState === "full" ? " is-scrollable" : ""}`}>
+            <div
+              className={`sheet-scroll${sheetState === "full" ? " is-scrollable" : ""}`}
+              /* In "peek" the whole body drags the sheet (the "↑ swipe up" prompt
+                 included) — not just the grabber handle up top. In "full" the body
+                 scrolls instead, so the drag stays on the handle. */
+              onPointerDown={sheetState === "peek" ? onDragStart : undefined}
+            >
               <div className="sheet-titlebar">
                 <h2 className="sheet-title">{rec.title}</h2>
                 <div className="sheet-sub">
@@ -1061,15 +1093,19 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           }
           .modal--sheet .close-x { font-size: 13px; }
 
-          /* scrollable content region (everything below the drag zone) */
+          /* scrollable content region (everything below the drag zone). In
+             "peek" it's a drag surface (touch-action: none so the browser doesn't
+             steal the vertical swipe — that's what made "swipe up here" do
+             nothing before); in "full" it scrolls (touch-action: pan-y). */
           .sheet-scroll {
             flex: 1 1 auto;
             overflow-y: hidden;
             overflow-x: hidden;
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
+            touch-action: none;
           }
-          .sheet-scroll.is-scrollable { overflow-y: auto; }
+          .sheet-scroll.is-scrollable { overflow-y: auto; touch-action: pan-y; }
 
           .sheet-titlebar {
             padding: 12px 16px 11px;
