@@ -29,6 +29,12 @@ export default defineConfig({
             ) {
               return 'three-globe';
             }
+            // pdf.js (~1MB) — only the record modal's lazy PdfViewer pulls it in;
+            // keep it in its own chunk so the lazy import stays clean and it's
+            // never bundled into the homepage entry.
+            if (id.includes('pdfjs-dist')) {
+              return 'pdfjs';
+            }
           },
         },
       },
