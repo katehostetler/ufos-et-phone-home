@@ -524,9 +524,12 @@ export default function GlobeApp({ records }: Props) {
 
   return (
     <>
-      {/* type chips — open the slim PinRail browser for that media type. (No
-          "BROWSE PINS" label — the coloured type chips read as a pin browser on
-          their own.) */}
+      {/* Type chips — open the slim PinRail browser for that media type. These
+          count records that HAVE a mappable location (so vid+img+pdf here sums to
+          114, not 161); the trailing "LOCATION UNKNOWN" chip carries the other 47
+          (records the files give no location for) and links to the /no-location
+          page. 114 + 47 = 161. (No "BROWSE PINS" label — the coloured chips read
+          as a pin browser on their own.) */}
       <div className="filterbar">
         {(["vid", "img", "pdf"] as MediaType[]).map((t) => {
           const labels = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
@@ -555,6 +558,22 @@ export default function GlobeApp({ records }: Props) {
             </span>
           );
         })}
+        {(() => {
+          const noLocCount = records.filter((r) => !r.hasLocation).length;
+          return (
+            <a
+              href="/no-location"
+              className="chip noloc active"
+              title={`Browse the ${noLocCount} records whose files give no location — they can't be pinned to the globe`}
+            >
+              <span className="swatch"></span>
+              <span className="noloc-full">LOCATION UNKNOWN</span>
+              <span className="noloc-short">NO LOCATION</span>
+              {" · "}
+              {noLocCount}
+            </a>
+          );
+        })()}
       </div>
 
       {/* slim left-docked pin browser */}

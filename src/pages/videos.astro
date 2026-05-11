@@ -1,6 +1,7 @@
 ---
 import PageLayout from "@/layouts/PageLayout.astro";
 import RecordCard from "@/components/RecordCard.astro";
+import GalleryFilter from "@/components/GalleryFilter.astro";
 import records from "@/data/records.json";
 import type { Record } from "@/types/record";
 
@@ -10,6 +11,7 @@ const vids = (records as Record[])
 ---
 
 <PageLayout title="VIDEO FOOTAGE" subtitle={`${vids.length} declassified videos · sortable by year`}>
+  <GalleryFilter mode="nav" activeType="vid" />
   <div class="grid">
     {vids.map((r) => <RecordCard record={r} />)}
   </div>

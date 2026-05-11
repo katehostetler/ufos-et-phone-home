@@ -1,18 +1,26 @@
 ---
 import PageLayout from "@/layouts/PageLayout.astro";
 import RecordCard from "@/components/RecordCard.astro";
+import GalleryFilter from "@/components/GalleryFilter.astro";
 import records from "@/data/records.json";
 import type { Record } from "@/types/record";
 
 const noLoc = (records as Record[])
   .filter((r) => !r.hasLocation)
   .sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
+
+const counts = {
+  vid: noLoc.filter((r) => r.mediaType === "vid").length,
+  img: noLoc.filter((r) => r.mediaType === "img").length,
+  pdf: noLoc.filter((r) => r.mediaType === "pdf").length,
+};
 ---
 
 <PageLayout
   title="LOCATION UNKNOWN"
-  subtitle={`${noLoc.length} records without an incident location · mostly Cold War FBI files`}
+  subtitle={`${noLoc.length} records the files give no incident location for — they can't be pinned to the globe · mostly Cold War FBI files`}
 >
+  <GalleryFilter mode="inline" counts={counts} />
   <div class="grid">
     {noLoc.map((r) => <RecordCard record={r} />)}
   </div>
