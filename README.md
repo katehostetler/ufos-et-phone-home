@@ -6,7 +6,7 @@ An interactive archive of the 161 declassified UFO/UAP records the U.S. Departme
 
 ## What it is
 
-The war.gov release is a CSV manifest plus a stack of FBI Cold War files, Navy infrared footage, Apollo-era photos, and military mission reports. This site plots the records that have a known location as pins on a 3D Earth — colour-coded by file type (red = video, cyan = photo, violet = document) — and clicking a pin flies the camera in and opens the report (PDFs embed and page through inline). The Apollo records sit on a small Moon orbiting the Earth. The ~47 records with no location given have their own page. There's a "Hall of Fame" of the ten strangest, and every record is browsable by type. Each one links back to its original war.gov URL; nothing is altered.
+The war.gov release is a CSV manifest plus a stack of FBI Cold War files, Navy infrared footage, Apollo-era photos, and military mission reports. This site plots the records that have a known location as pins on a 3D Earth — colour-coded by file type (red = video, cyan = photo, violet = document) — and clicking a pin flies the camera in and opens the report (PDFs render page-by-page inline with pdf.js, scrollable and fit-to-width — works on mobile). The Apollo records sit on a small Moon orbiting the Earth. The ~47 records with no location given have their own page. There's a "Hall of Fame" of the ten strangest, and every record is browsable by type. Each one links back to its original war.gov URL; nothing is altered.
 
 ## Run it locally
 
@@ -24,7 +24,7 @@ Deployed on Cloudflare Pages — pushes to `main` build and ship automatically. 
 
 ## Stack
 
-Astro + React + [`react-globe.gl`](https://github.com/vasturiano/react-globe.gl) (Three.js) + Tailwind. `scripts/build-records.mjs` parses the war.gov CSV, geocodes the "Incident Location" strings via a static lookup table, scrapes DVIDS for video thumbnails/MP4s, and mirrors war.gov thumbnails into `public/thumbnails/`. The output is `src/data/records.json`; `src/data/featured.json` is the curated Hall of Fame (the build fails if it references a record that no longer exists).
+Astro + React + [`react-globe.gl`](https://github.com/vasturiano/react-globe.gl) (Three.js) + [`pdfjs-dist`](https://github.com/mozilla/pdf.js) (inline PDF viewer) + Tailwind. `scripts/build-records.mjs` parses the war.gov CSV, geocodes the "Incident Location" strings via a static lookup table, scrapes DVIDS for video thumbnails/MP4s, and mirrors war.gov thumbnails into `public/thumbnails/`. The output is `src/data/records.json`; `src/data/featured.json` is the curated Hall of Fame (the build fails if it references a record that no longer exists).
 
 ```
 data/                      build-time inputs (CSV, geocode lookups, DVIDS caches)
@@ -32,8 +32,9 @@ public/thumbnails/         mirrored war.gov thumbnails
 public/textures/           earth + moon textures
 scripts/build-records.mjs  the data pipeline
 functions/api/tts.js       Cloudflare Pages Function — ElevenLabs TTS proxy
-src/components/            GlobeApp, RecordModal, HallOfFameOverlay, GalleryFilter, FloatingUfos, LunarMoon, …
-src/lib/                   pushpin geometry, city-light shimmer shader, ufo pool, gallery-filter + bottom-sheet logic
+functions/api/pdf.js       Cloudflare Pages Function — same-origin war.gov PDF proxy (pdf.js can't fetch them cross-origin)
+src/components/            GlobeApp, RecordModal, PdfViewer, HallOfFameOverlay, GalleryFilter, FloatingUfos, LunarMoon, …
+src/lib/                   pushpin geometry, city-light shimmer shader, ufo pool, pdf-proxy URL, gallery-filter + bottom-sheet logic
 src/data/                  records.json (generated) + featured.json (curated)
 src/pages/                 /, /gallery, /videos, /photos, /files, /no-location, /about
 tests/                     vitest

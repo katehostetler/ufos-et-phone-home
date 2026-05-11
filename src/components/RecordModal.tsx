@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Portal from "./Portal";
 import { pickSnapState, translateForState, type SheetState } from "@/lib/bottomSheet";
+import { proxiedPdfUrl } from "@/lib/pdfProxy";
 import type { Record } from "@/types/record";
+
+// pdfjs-dist is ~1MB — lazy-load the viewer so it isn't in the main bundle and
+// only ships when someone actually opens a document record.
+const PdfViewer = lazy(() => import("./PdfViewer"));
 
 interface Props {
   records: Record[];
@@ -89,17 +94,21 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
 
   const rec = records[idx];
 
-  // For document records: the war.gov-hosted PDF, embedded inline so the
-  // browser's native PDF viewer handles page-through + zoom. `null` for anything
-  // that isn't a real .pdf (those keep the thumbnail-only hero).
+  // For document records: `pdfUrl` is the *direct* war.gov PDF (the "VIEW SOURCE
+  // PDF →" link + fullscreen fallback target); `pdfProxied` is the same-origin
+  // `/api/pdf?url=…` the in-app pdf.js viewer fetches (war.gov serves no CORS
+  // headers, so it can't be fetched cross-origin). Both are `null` for anything
+  // that isn't a real war.gov medialink .pdf (those keep the thumbnail-only hero).
   const pdfUrl =
     rec.mediaType === "pdf" && rec.assetUrl && /\.pdf(\?|#|$)/i.test(rec.assetUrl)
       ? safeHref(rec.assetUrl)
       : null;
-  const pdfFrameRef = useRef<HTMLIFrameElement>(null);
+  const pdfProxied = proxiedPdfUrl(rec.assetUrl);
+  // The `is-pdf` hero (with the inline viewer) — gated on having a proxiable PDF.
+  const pdfHeroRef = useRef<HTMLDivElement>(null);
   const openPdfFullscreen = useCallback(() => {
-    const el = pdfFrameRef.current as
-      | (HTMLIFrameElement & { webkitRequestFullscreen?: () => unknown })
+    const el = pdfHeroRef.current as
+      | (HTMLDivElement & { webkitRequestFullscreen?: () => unknown })
       | null;
     const req = el?.requestFullscreen ?? el?.webkitRequestFullscreen;
     if (el && req) {
@@ -445,9 +454,9 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
   );
 
   const heroClass =
-    rec.mediaType === "vid" ? "is-video" : pdfUrl ? "is-pdf" : "is-still";
+    rec.mediaType === "vid" ? "is-video" : pdfProxied ? "is-pdf" : "is-still";
   const heroEl = (
-    <div className={`modal-hero ${heroClass}`}>
+    <div className={`modal-hero ${heroClass}`} ref={pdfProxied ? pdfHeroRef : undefined}>
       {rec.mediaType === "vid" && rec.videoMp4Url ? (
         <video
           key={rec.id}
@@ -465,18 +474,13 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           allowFullScreen
           title={rec.title}
         />
-      ) : pdfUrl ? (
-        // Document records: the PDF embedded inline — page through it and zoom
-        // right here; the ⛶ button below fullscreens it. (#toolbar/navpanes/view
-        // hint Chrome's viewer; harmless elsewhere.)
-        <iframe
-          ref={pdfFrameRef}
-          className="pdf-frame"
-          src={`${pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
-          allow="fullscreen"
-          allowFullScreen
-          title={rec.title}
-        />
+      ) : pdfProxied ? (
+        // Document records: each page rendered to a canvas by pdf.js, stacked in
+        // a scrollable column fit to width — works on mobile (the native PDF
+        // iframe doesn't). The ⛶ button below fullscreens this hero.
+        <Suspense fallback={<div className="modal-hero-placeholder">Loading PDF…</div>}>
+          <PdfViewer url={pdfProxied} />
+        </Suspense>
       ) : rec.mediaType === "img" && rec.assetUrl && /\.(jpe?g|png|gif|webp)(\?|#|$)/i.test(rec.assetUrl) ? (
         <img src={rec.assetUrl} alt={rec.title} />
       ) : rec.thumbnailUrl ? (
@@ -486,7 +490,7 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
       ) : (
         <div className="modal-hero-placeholder">No preview available</div>
       )}
-      {pdfUrl && (
+      {pdfProxied && (
         <button
           type="button"
           className="pdf-fullscreen"
@@ -825,20 +829,21 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           background: #06080d;
           display: block;
         }
-        /* document records: the PDF embedded as an iframe (browser's native PDF
-           viewer — page-through + zoom). Generous fixed height; the ⛶ button
-           fullscreens the iframe itself. The grey bg matches Chrome's viewer
-           chrome so there's no white flash while it loads. */
+        /* document records: pages rendered to canvases by pdf.js, stacked in a
+           scrollable column fit to width (works on mobile, unlike the native PDF
+           iframe). Generous fixed height; the ⛶ button fullscreens this hero.
+           The dark bg is the placeholder while pdf.js loads. */
         .modal-hero.is-pdf {
           height: min(72vh, 760px);
           min-height: 280px;
-          background: #525659;
+          background: #2a2c2e;
+          /* let the inner .pdf-pages own the scrolling, not center its content */
+          align-items: stretch;
+          justify-content: stretch;
         }
-        .modal-hero.is-pdf .pdf-frame {
-          width: 100%;
+        .modal-hero.is-pdf:fullscreen {
           height: 100%;
-          border: 0;
-          display: block;
+          width: 100%;
         }
         .pdf-fullscreen {
           position: absolute;
