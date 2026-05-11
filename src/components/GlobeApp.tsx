@@ -29,10 +29,10 @@ const PIN_GLYPHS: Record<MediaType, string> = {
 // spot like "Low Earth Orbit" reads as a gold document pin).
 const TYPE_PRIORITY: Record<MediaType, number> = { pdf: 3, img: 2, vid: 1 };
 
-/** Highlight colour for the pin the PinRail is currently flying you to — a clean
- *  white beacon, deliberately not one of the media-type pin colours. */
-const PIN_HIGHLIGHT = 0xffffff;
-const PIN_HIGHLIGHT_EMISSIVE = 0x9aa0aa;
+/** Highlight colour for the pin you've selected (or the PinRail is flying you
+ *  to) — the HUD green, deliberately not one of the media-type pin colours. */
+const PIN_HIGHLIGHT = 0x6affc8;
+const PIN_HIGHLIGHT_EMISSIVE = 0x2f7d5d;
 
 type QueueType = MediaType | "noloc";
 
@@ -131,7 +131,7 @@ export default function GlobeApp({ records }: Props) {
       if (m) {
         // Pump the active pin up hard — extra hard on touch, where the bottom
         // sheet eats the lower half of the screen and a subtle cue would be
-        // lost. White bead + white halo + scale = unmistakably "this one".
+        // lost. Green bead + green halo + scale = unmistakably "this one".
         m.scale.setScalar(isTouch ? 2.8 : 1.8);
         const bead = m.userData?.bead;
         if (bead) {

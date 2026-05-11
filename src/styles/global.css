@@ -715,8 +715,12 @@ body::after {
   line-height: 1.6;
 }
 
-/* a type chip currently driving an open rail gets a stronger ring */
-.chip.open { box-shadow: 0 0 12px rgba(106,255,200,.4) inset, 0 0 8px rgba(106,255,200,.3); }
+/* a type chip currently driving an open rail glows brighter in its OWN media-
+   type colour (was a generic near-white green ring) + a more solid border */
+.chip.open.vid { box-shadow: 0 0 14px rgba(255,59,59,.6) inset,  0 0 12px rgba(255,59,59,.55);  border-color: rgba(255,59,59,.9); }
+.chip.open.img { box-shadow: 0 0 14px rgba(90,215,255,.6) inset, 0 0 12px rgba(90,215,255,.55); border-color: rgba(90,215,255,.9); }
+.chip.open.pdf { box-shadow: 0 0 14px rgba(181,108,255,.6) inset, 0 0 12px rgba(181,108,255,.55); border-color: rgba(181,108,255,.9); }
+.chip.open     { box-shadow: 0 0 12px rgba(106,255,200,.4) inset, 0 0 8px rgba(106,255,200,.3); }
 
 /* Mobile: a slim panel docked to the bottom (over the dock) so the top ~58% of
    the screen stays globe — you can watch the camera fly to a pin as you scroll. */
