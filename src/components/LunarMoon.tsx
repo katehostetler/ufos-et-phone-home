@@ -11,7 +11,9 @@
  *   go all over the Moon). Clicking a pin opens that record; clicking the Moon
  *   body opens all the lunar records. Each pin has an invisible larger
  *   hit-sphere so it's easy to aim at.
- * - The Moon barely moves (≈5-minute orbit, no spin) so it's easy to interact.
+ * - The Moon barely moves (≈5-minute orbit) and is gently re-oriented each
+ *   frame so the pin cluster always faces roughly toward the camera (otherwise
+ *   the cluster could swing to the Moon's far side and the pins would vanish).
  * - Dispose geometry / materials / textures on unmount; reuse Raycaster.
  */
 
@@ -212,6 +214,14 @@ export default function LunarMoon({ globeRef, records, onSelect, dirRef }: Props
       let msFleeUntil = 0;
       const _msWorld = new THREE.Vector3();
 
+      // Scratch objects for the "keep the pin cluster facing the camera" rotation
+      // — allocated once, reused every frame.
+      const _camWorld = new THREE.Vector3();
+      const _moonWorld = new THREE.Vector3();
+      const _dirToCam = new THREE.Vector3();
+      const _faceQuat = new THREE.Quaternion();
+      const _smallTilt = THREE.MathUtils.degToRad(8); // a touch off head-on, so it reads as 3D
+
       const t0 = performance.now();
       let lastNow = t0;
       function frame(now: number) {
@@ -232,6 +242,24 @@ export default function LunarMoon({ globeRef, records, onSelect, dirRef }: Props
           Math.sin(a) * Math.sin(ORBIT_TILT) * ORBIT_RADIUS * 0.45,
           Math.sin(a) * ORBIT_RADIUS,
         );
+        // Spin the Moon so its pin-cluster face always points roughly at the
+        // camera — otherwise, depending on where the Moon is in its orbit, the
+        // cluster can swing around to the far side and the lunar pins vanish.
+        // The group only carries position (no rotation), so the Moon's parent-
+        // local space === world space; we can aim CLUSTER_DIR straight at the
+        // camera direction. (Holds under reduced-motion too: the orbit freezes
+        // at a fixed `a`, but the Moon still faces the camera from there.)
+        if (moonRef.current) {
+          const cam = globeRef.current.camera();
+          cam.getWorldPosition(_camWorld);
+          moonRef.current.getWorldPosition(_moonWorld);
+          _dirToCam.subVectors(_camWorld, _moonWorld).normalize();
+          if (_dirToCam.lengthSq() > 1e-6) {
+            _faceQuat.setFromUnitVectors(CLUSTER_DIR, _dirToCam);
+            moonRef.current.quaternion.copy(_faceQuat);
+            moonRef.current.rotateX(_smallTilt); // nudge off perfectly head-on
+          }
+        }
         // publish the lat/lng that points at the Moon, so the parent can fly the
         // camera "toward the Moon" when a lunar record is selected from a rail
         if (dirRef) {
