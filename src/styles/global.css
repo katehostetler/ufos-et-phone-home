@@ -197,8 +197,24 @@ body::after {
 .pin-tooltip.img .loc { color: var(--color-img); }
 .pin-tooltip.pdf .loc { color: var(--color-pdf); }
 .pin-tooltip .pt-icon { font-size: 12px; line-height: 1; }
+/* the "N RECORDS" badge — bright pill so a busy location is obvious on hover */
+.pin-tooltip .pt-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 9px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: #04060b;
+  background: var(--color-hud);
+}
+.pin-tooltip.vid .pt-count { background: var(--color-vid); color: #fff; }
+.pin-tooltip.img .pt-count { background: var(--color-img); color: #04060b; }
+.pin-tooltip.pdf .pt-count { background: var(--color-pdf); color: #fff; }
 .pin-tooltip .ttl { font-weight: 600; }
-.pin-tooltip .meta { font-size: 9px; opacity: .55; margin-top: 3px; }
+.pin-tooltip .meta { font-size: 9px; opacity: .65; margin-top: 3px; letter-spacing: .12em; text-transform: uppercase; }
 
 /* Tooltip shown when hovering the orbiting Moon (created in document.body by LunarMoon) */
 .moon-tooltip {
