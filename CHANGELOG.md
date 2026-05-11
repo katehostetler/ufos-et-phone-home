@@ -148,3 +148,11 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 
 ### Tests
 - `tests/pushpin.test.ts`: guard that `makePushpin` keeps exposing `userData.bead` / `userData.halo` / `userData.defaultColor` / `userData.defaultEmissive` / `userData.defaultHaloColor` (the handle the "selected pin" highlight uses to recolour the marker and put it back); and that `pushpinHitAltitude()` always returns a cylinder taller than the visible marker (and than the bare needle) across the regional/touch combos.
+
+## 2026-05-11
+
+### Changed (Hall of Fame re-curation)
+- Re-reviewed all 161 records and reworked the Hall of Fame's soft spots:
+  - **Gemini 7 transcript hook** now leads with the wildest line in the file — astronaut Jim Lovell's *"a brilliant body in the sun against a black background with trillions of particles on it"* — instead of the dry "bogey" detail (the "UFO Sighting by Borman" handwritten-notes bit moves to the kicker).
+  - **Dropped the Gemini 7 *audio* (`nasa-uap-d3a`)** — it's the same event/astronauts as the Gemini 7 *transcript* already in the list — and **added the Apollo 12 transcript (`nasa-uap-d1`)**: Alan Bean watching particles and flashes of light *"sailing off in space"* through the alignment telescope, *"escaping the Moon."*
+  - **Dropped `dow-uap-d33`** (UAP skimming the ocean, 90° turns at 80 mph — the most generic of the ten; there are ~6 near-identical "object over the water" reports) and **added the 1945 "foo fighters" file (`331-120752-…-german-armament-equipment-documents`)**: Allied wartime command's own records on the glowing lights and "unidentified cylindrical objects" that shadowed the 415th Night Fighter Squadron over Europe.
