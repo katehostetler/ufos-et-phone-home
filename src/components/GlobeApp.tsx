@@ -108,18 +108,18 @@ export default function GlobeApp({ records }: Props) {
   // Highlight (white beacon, grown) the pin the PinRail / queue is currently
   // flying you to, and restore the previously-highlighted one — so when several
   // pins are nearby you can tell which one it just moved you to. Pass null to
-  // clear (e.g. when the rail closes). Pins are keyed by location name and have
-  // a count-based `userData.baseScale` we restore them to.
+  // clear (e.g. when the rail closes). Pins are keyed by location name.
   const highlightPin = useCallback((rec: Record | null) => {
     const restore = (key: string) => {
       const m = pinMeshesRef.current.get(key);
       if (!m) return;
-      m.scale.setScalar(m.userData?.baseScale ?? 1);
+      m.scale.setScalar(1);
       const bead = m.userData?.bead;
       if (bead) {
         bead.material.color.copy(m.userData.defaultColor);
         bead.material.emissive.copy(m.userData.defaultEmissive);
       }
+      if (m.userData?.halo) m.userData.halo.material.color.copy(m.userData.defaultHaloColor);
     };
     const key = rec?.location?.name ?? null;
     const prev = railHighlightedIdRef.current;
@@ -129,12 +129,13 @@ export default function GlobeApp({ records }: Props) {
     if (key) {
       const m = pinMeshesRef.current.get(key);
       if (m) {
-        m.scale.setScalar((m.userData?.baseScale ?? 1) * 1.7);
+        m.scale.setScalar(1.8);
         const bead = m.userData?.bead;
         if (bead) {
           bead.material.color.setHex(PIN_HIGHLIGHT);
           bead.material.emissive.setHex(PIN_HIGHLIGHT_EMISSIVE);
         }
+        if (m.userData?.halo) m.userData.halo.material.color.setHex(PIN_HIGHLIGHT);
       }
     }
   }, []);

@@ -7,17 +7,19 @@ import * as THREE from "three";
  */
 const GLOBE_RADIUS = 100;
 
-/** Tunable geometry for the flat map-style markers. (Small + low — the bead is
- *  just a marker; the clickable hit-volume is a separate, much larger
- *  transparent sphere set by `pointRadius` in GlobeApp. `customThreeObject`
- *  scales the whole pin up for locations with many records.) */
+/** Tunable geometry for the map markers. A flattened "button" with a bright
+ *  contrasting ring around it (so it reads clearly against the city lights and
+ *  the dark ocean alike), on a short stub. The clickable hit-volume is a
+ *  separate, much larger transparent sphere set by `pointRadius` in GlobeApp. */
 export const PUSHPIN = {
-  needleRadius: 0.05, // tiny chrome stub (world units)
-  beadRadius: 0.72,
-  beadRadiusRegional: 0.92,
-  beadFlatten: 0.45, // bead y-scale — a low dome / button, not a ball
-  altitude: 0.013, // marker sits this high above the surface (fraction of globe radius)
-  altitudeRegional: 0.016,
+  needleRadius: 0.06,
+  beadRadius: 1.1,
+  beadRadiusRegional: 1.35,
+  beadFlatten: 0.5, // bead y-scale — a low button, not a ball
+  haloRadiusMul: 1.55, // ring radius, as a multiple of the bead radius
+  haloTubeMul: 0.11,
+  altitude: 0.022, // marker sits this high above the surface (fraction of globe radius)
+  altitudeRegional: 0.026,
   needleColor: 0xb8c0c8,
   touchScale: 1.3, // pins pumped up a little on touch devices
 } as const;
@@ -35,11 +37,12 @@ export function pushpinAltitude(opts: { regional?: boolean; touch?: boolean }): 
 }
 
 /**
- * A flat map-style marker as a THREE.Group: a tiny chrome stub along the
- * group's local +Y axis (y=0 at the globe surface) topped by a flattened,
- * glossy, media-type-coloured "button". The caller positions the group at the
- * surface point and rotates it so local +Y points radially outward — so the
- * flattened button lies (roughly) parallel to the surface, like a dot on a map.
+ * A map marker as a THREE.Group: a tiny chrome stub along the group's local +Y
+ * axis (y=0 at the globe surface), topped by a flattened glossy, media-type-
+ * coloured "button", ringed by a bright halo torus. The caller positions the
+ * group at the surface point and rotates it so local +Y points radially outward
+ * — so the button + ring lie (roughly) parallel to the surface, like a target
+ * marker on a map.
  */
 export function makePushpin(opts: PushpinOpts): THREE.Group {
   const g = new THREE.Group();
@@ -62,7 +65,7 @@ export function makePushpin(opts: PushpinOpts): THREE.Group {
   }
 
   const color = new THREE.Color(opts.color);
-  const defaultEmissive = color.clone().multiplyScalar(0.16); // keep markers legible on the night side
+  const defaultEmissive = color.clone().multiplyScalar(0.45); // glow so it's legible against the lights / night side
   const bead = new THREE.Mesh(
     new THREE.SphereGeometry(beadR, 20, 14),
     new THREE.MeshPhongMaterial({
@@ -73,14 +76,26 @@ export function makePushpin(opts: PushpinOpts): THREE.Group {
     }),
   );
   bead.scale.set(1, PUSHPIN.beadFlatten, 1); // flatten into a low button
-  bead.position.y = len + beadR * PUSHPIN.beadFlatten * 0.5;
+  bead.position.y = len + beadR * PUSHPIN.beadFlatten * 0.6;
+
+  // bright contrasting ring around the button — a light tint of the bead colour,
+  // lying flat against the surface. Child of the bead so it tracks its flatten.
+  const haloColor = color.clone().lerp(new THREE.Color(0xffffff), 0.55);
+  const halo = new THREE.Mesh(
+    new THREE.TorusGeometry(beadR * PUSHPIN.haloRadiusMul, beadR * PUSHPIN.haloTubeMul, 6, 22),
+    new THREE.MeshBasicMaterial({ color: haloColor, transparent: true, opacity: 0.8, depthWrite: false }),
+  );
+  halo.rotation.x = Math.PI / 2; // hole-axis along the bead's local +Y (radial) → ring lies flat
+  bead.add(halo);
   g.add(bead);
 
   // Stash the bead + its default look so callers (the PinRail "you're being
   // flown here" highlight) can recolour it and put it back.
   g.userData.bead = bead;
+  g.userData.halo = halo;
   g.userData.defaultColor = color.clone();
   g.userData.defaultEmissive = defaultEmissive.clone();
+  g.userData.defaultHaloColor = haloColor.clone();
 
   return g;
 }
