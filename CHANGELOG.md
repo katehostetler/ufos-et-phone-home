@@ -175,3 +175,6 @@ All notable changes to the ufos-et-phone-home project will be documented in this
 ### Changed (repo tidy-up)
 - Stopped tracking the `docs/` folder (design specs, implementation plans, the DEPLOY and HANDOFF notes) — it's `.gitignore`d now, so it stays on disk locally but isn't in the public repo. The README + this CHANGELOG cover what anyone cloning actually needs.
 - Rewrote `README.md` to be shorter and more matter-of-fact (less prose, fewer asides); fixed the stale "gold = document" (document pins are violet) and dropped the now-removed `docs/superpowers/` from the project-structure listing; added the inline-PDF and gallery-filter bits to the structure.
+
+### Fixed (mobile bottom sheet — swipe-up actually works now)
+- On the mobile record sheet, swiping up on the peek-state content (the "↑ SWIPE UP FOR THE FULL REPORT" prompt included, and the area around it) now expands the sheet — previously only *tapping* the button worked because the drag was wired solely to the little grabber handle up top and `.sheet-scroll` had no `touch-action`, so the browser ate the vertical swipe. The drag also commits only after ~6px of travel (a press that doesn't move is still a tap → the prompt's click fires), and from "peek" any clear upward drag/velocity snaps to "full" — no hard flick required.
