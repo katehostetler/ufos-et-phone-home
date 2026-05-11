@@ -13,6 +13,15 @@ interface Props {
 
 const TYPE_LABEL = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
 
+/** Normalise a URL (encodes spaces / brackets some war.gov filenames carry). */
+function safeHref(u: string): string {
+  try {
+    return new URL(u).href;
+  } catch {
+    return u;
+  }
+}
+
 /** Below this width the modal becomes a draggable bottom sheet. */
 const SHEET_MAX_WIDTH = 767;
 /** Fraction of the screen height left uncovered (globe visible) in the "peek" rest state. */
@@ -71,6 +80,29 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
   } | null>(null);
 
   const rec = records[idx];
+
+  // For document records: the war.gov-hosted PDF, embedded inline so the
+  // browser's native PDF viewer handles page-through + zoom. `null` for anything
+  // that isn't a real .pdf (those keep the thumbnail-only hero).
+  const pdfUrl =
+    rec.mediaType === "pdf" && rec.assetUrl && /\.pdf(\?|#|$)/i.test(rec.assetUrl)
+      ? safeHref(rec.assetUrl)
+      : null;
+  const pdfFrameRef = useRef<HTMLIFrameElement>(null);
+  const openPdfFullscreen = useCallback(() => {
+    const el = pdfFrameRef.current as
+      | (HTMLIFrameElement & { webkitRequestFullscreen?: () => unknown })
+      | null;
+    const req = el?.requestFullscreen ?? el?.webkitRequestFullscreen;
+    if (el && req) {
+      Promise.resolve(req.call(el)).catch(() => {
+        if (pdfUrl) window.open(pdfUrl, "_blank", "noopener");
+      });
+    } else if (pdfUrl) {
+      // e.g. iOS Safari (no element-fullscreen) — open the PDF in its own tab
+      window.open(pdfUrl, "_blank", "noopener");
+    }
+  }, [pdfUrl]);
 
   /** Measure the sheet geometry (independent of the current transform). */
   const measure = useCallback(() => {
@@ -386,8 +418,10 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
     </header>
   );
 
+  const heroClass =
+    rec.mediaType === "vid" ? "is-video" : pdfUrl ? "is-pdf" : "is-still";
   const heroEl = (
-    <div className={`modal-hero ${rec.mediaType === "vid" ? "is-video" : "is-still"}`}>
+    <div className={`modal-hero ${heroClass}`}>
       {rec.mediaType === "vid" && rec.videoMp4Url ? (
         <video
           key={rec.id}
@@ -405,6 +439,18 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           allowFullScreen
           title={rec.title}
         />
+      ) : pdfUrl ? (
+        // Document records: the PDF embedded inline — page through it and zoom
+        // right here; the ⛶ button below fullscreens it. (#toolbar/navpanes/view
+        // hint Chrome's viewer; harmless elsewhere.)
+        <iframe
+          ref={pdfFrameRef}
+          className="pdf-frame"
+          src={`${pdfUrl}#toolbar=1&navpanes=0&view=FitH`}
+          allow="fullscreen"
+          allowFullScreen
+          title={rec.title}
+        />
       ) : rec.mediaType === "img" && rec.assetUrl && /\.(jpe?g|png|gif|webp)(\?|#|$)/i.test(rec.assetUrl) ? (
         <img src={rec.assetUrl} alt={rec.title} />
       ) : rec.thumbnailUrl ? (
@@ -413,6 +459,17 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
         <img src={rec.thumbnailUrl} alt={`${rec.title}`} />
       ) : (
         <div className="modal-hero-placeholder">No preview available</div>
+      )}
+      {pdfUrl && (
+        <button
+          type="button"
+          className="pdf-fullscreen"
+          onClick={openPdfFullscreen}
+          aria-label="View this document full screen"
+          title="Full screen"
+        >
+          ⛶ FULL SCREEN
+        </button>
       )}
       {records.length > 1 && (
         <>
@@ -736,6 +793,38 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           background: #06080d;
           display: block;
         }
+        /* document records: the PDF embedded as an iframe (browser's native PDF
+           viewer — page-through + zoom). Generous fixed height; the ⛶ button
+           fullscreens the iframe itself. The grey bg matches Chrome's viewer
+           chrome so there's no white flash while it loads. */
+        .modal-hero.is-pdf {
+          height: min(72vh, 760px);
+          min-height: 280px;
+          background: #525659;
+        }
+        .modal-hero.is-pdf .pdf-frame {
+          width: 100%;
+          height: 100%;
+          border: 0;
+          display: block;
+        }
+        .pdf-fullscreen {
+          position: absolute;
+          bottom: 12px; right: 12px;  /* clear of the PDF viewer's own top toolbar */
+          z-index: 3;
+          display: inline-flex; align-items: center; gap: 6px;
+          padding: 5px 10px;
+          font-family: var(--font-mono);
+          font-size: 9px; letter-spacing: .2em;
+          color: #fff;
+          background: rgba(2,4,8,.62);
+          border: 1px solid rgba(255,255,255,.25);
+          border-radius: 4px;
+          backdrop-filter: blur(3px);
+          cursor: pointer;
+          transition: background .15s, border-color .15s, color .15s;
+        }
+        .pdf-fullscreen:hover { background: rgba(2,4,8,.85); border-color: var(--color-hud); color: var(--color-hud); }
         .modal-hero video::-webkit-media-controls-panel {
           background: rgba(8,12,20,.6);
         }
@@ -1075,6 +1164,8 @@ export default function RecordModal({ records, onClose, closeLabel = "CLOSE" }: 
           /* hero / body / nav tweaks for the sheet */
           .modal--sheet .modal-hero.is-video { aspect-ratio: 16/9; max-height: 38vh; min-height: 150px; }
           .modal--sheet .modal-hero.is-still img { max-height: 52vh; }
+          .modal--sheet .modal-hero.is-pdf { height: min(62vh, 540px); min-height: 220px; }
+          .modal--sheet .pdf-fullscreen { bottom: 10px; right: 10px; font-size: 8px; padding: 4px 8px; letter-spacing: .12em; }
           .modal--sheet .modal-hero-placeholder { padding: 36px 0; }
           .modal--sheet .modal-body { padding: 16px 16px 22px; }
           .modal--sheet .modal-title { font-size: 16px; }
