@@ -6,7 +6,7 @@ import RecordModal from "./RecordModal";
 import QueuePanel from "./QueuePanel";
 import PinRail from "./PinRail";
 import LunarMoon from "./LunarMoon";
-import { makePushpin, pushpinAltitude, PUSHPIN } from "@/lib/pushpin";
+import { makePushpin, pushpinHitAltitude, PUSHPIN } from "@/lib/pushpin";
 import { applyCityLightShimmer } from "@/lib/globeShimmer";
 import FloatingUfos from "./FloatingUfos";
 import type { Record, MediaType } from "@/types/record";
@@ -29,10 +29,10 @@ const PIN_GLYPHS: Record<MediaType, string> = {
 // spot like "Low Earth Orbit" reads as a gold document pin).
 const TYPE_PRIORITY: Record<MediaType, number> = { pdf: 3, img: 2, vid: 1 };
 
-/** Highlight colour for the pin the PinRail is currently flying you to — a clean
- *  white beacon, deliberately not one of the media-type pin colours. */
-const PIN_HIGHLIGHT = 0xffffff;
-const PIN_HIGHLIGHT_EMISSIVE = 0x9aa0aa;
+/** Highlight colour for the pin you've selected (or the PinRail is flying you
+ *  to) — the HUD green, deliberately not one of the media-type pin colours. */
+const PIN_HIGHLIGHT = 0x6affc8;
+const PIN_HIGHLIGHT_EMISSIVE = 0x2f7d5d;
 
 type QueueType = MediaType | "noloc";
 
@@ -129,7 +129,10 @@ export default function GlobeApp({ records }: Props) {
     if (key) {
       const m = pinMeshesRef.current.get(key);
       if (m) {
-        m.scale.setScalar(1.8);
+        // Pump the active pin up hard — extra hard on touch, where the bottom
+        // sheet eats the lower half of the screen and a subtle cue would be
+        // lost. Green bead + green halo + scale = unmistakably "this one".
+        m.scale.setScalar(isTouch ? 2.8 : 1.8);
         const bead = m.userData?.bead;
         if (bead) {
           bead.material.color.setHex(PIN_HIGHLIGHT);
@@ -138,7 +141,7 @@ export default function GlobeApp({ records }: Props) {
         if (m.userData?.halo) m.userData.halo.material.color.setHex(PIN_HIGHLIGHT);
       }
     }
-  }, []);
+  }, [isTouch]);
 
   // Clear the pin beacon whenever the PinRail closes (by ✕, by clicking the
   // globe, or by toggling its chip off).
@@ -290,7 +293,7 @@ export default function GlobeApp({ records }: Props) {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let stopShimmer: (() => void) | null = null;
     if (!reduceMotion && globeMat) {
-      stopShimmer = applyCityLightShimmer(globeMat, { intensity: 0.7, rate: 1.1 });
+      stopShimmer = applyCityLightShimmer(globeMat, { intensity: 0.45, rate: 1.1 });
     }
 
     return () => {
@@ -406,14 +409,29 @@ export default function GlobeApp({ records }: Props) {
       // Snapshot the user's current view so we can return them here on close.
       if (globeRef.current) {
         savedPovRef.current = (globeRef.current as any).pointOfView() ?? null;
+        // On touch the bottom sheet covers the lower ~half of the screen, so a
+        // pin tapped down there is hidden — you can't see which one you picked.
+        // Recenter on it (the saved POV is restored on close). Desktop's panel
+        // docks to the left with plenty of globe still showing, so leave the
+        // camera be there — just light the pin up.
+        if (isTouch && p.location.name !== "Moon") {
+          globeRef.current.pointOfView(
+            { lat: p.location.lat, lng: p.location.lng, altitude: 1.7 },
+            800,
+          );
+        }
       }
+      highlightPin(p);
       setModalRecords(same);
     },
-    [records],
+    [records, isTouch, highlightPin],
   );
 
   const closeModalPreservingView = useCallback(() => {
     setModalRecords(null);
+    // Drop the "this is the pin you opened" highlight — unless a rail/queue is
+    // still open, in which case that surface owns the highlight (its active item).
+    if (!pinRailType && !queueType) highlightPin(null);
     // Resume auto-rotation (the Moon click pauses it while you read its reports).
     if (controlsRef.current) controlsRef.current.autoRotate = true;
     // Restore the camera position the user was at before they clicked.
@@ -421,11 +439,13 @@ export default function GlobeApp({ records }: Props) {
       (globeRef.current as any).pointOfView(savedPovRef.current, 700);
       savedPovRef.current = null;
     }
-  }, []);
+  }, [highlightPin, pinRailType, queueType]);
 
   // A single tap/click on a pin opens the record (a bottom sheet on mobile, the
-  // left-docked panel on desktop). Camera stays put — tapping a pin shouldn't
-  // make you lose your place on the globe.
+  // left-docked panel on desktop) and lights that pin up so it's obvious which
+  // one you picked. On touch we also recenter the camera on it (the sheet hides
+  // half the screen); on desktop the camera stays put. Either way the prior
+  // view is restored when the modal closes.
   const onPointClick = useCallback(
     (point: object) => {
       openLocationModal(point as Record);
@@ -441,8 +461,10 @@ export default function GlobeApp({ records }: Props) {
   const pointLat = useCallback((d: any) => d._pinLat ?? d.location.lat, []);
   const pointLng = useCallback((d: any) => d._pinLng ?? d.location.lng, []);
   // All pins the same size, so the hit-target is uniform too (just generous —
-  // much bigger than the bead, extra fat on touch).
-  const pointAltitude = useCallback(() => pushpinAltitude({ touch: isTouch }), [isTouch]);
+  // much bigger than the bead, extra fat on touch). The cylinder is tall enough
+  // to fully enclose the visible marker so a click on the bead always lands in
+  // it, even with the pin near the globe's limb.
+  const pointAltitude = useCallback(() => pushpinHitAltitude({ touch: isTouch }), [isTouch]);
   const pointRadius = useCallback(() => PUSHPIN.beadRadius * (isTouch ? 9 : 3.5), [isTouch]);
   const pointLabel = useCallback(
     (d: any) => {
@@ -469,6 +491,15 @@ export default function GlobeApp({ records }: Props) {
   const customThreeObject = useCallback(
     (d: any) => {
       const m = makePushpin({ color: COLORS[(d._pinType ?? d.mediaType) as MediaType], touch: isTouch });
+      // The visible pushpin must be invisible to the raycaster: clicks/hovers
+      // belong to the transparent pointsData hit-cylinder under it. Otherwise the
+      // bead — which sits closer to the camera than the cylinder — is the nearest
+      // ray hit, so globe.gl treats the click as a "custom layer" hit (which we
+      // don't handle) and onPointClick never fires. Disable raycast on the whole
+      // group + every child.
+      m.traverse((o: THREE.Object3D) => {
+        o.raycast = () => {};
+      });
       pinMeshesRef.current.set(d.location.name, m);
       return m;
     },
@@ -493,9 +524,10 @@ export default function GlobeApp({ records }: Props) {
 
   return (
     <>
-      {/* type chips — open the slim PinRail browser for that media type */}
+      {/* type chips — open the slim PinRail browser for that media type. (No
+          "BROWSE PINS" label — the coloured type chips read as a pin browser on
+          their own.) */}
       <div className="filterbar">
-        <span className="filterbar-label">⏵ BROWSE PINS</span>
         {(["vid", "img", "pdf"] as MediaType[]).map((t) => {
           const labels = { vid: "VIDEO", img: "PHOTO", pdf: "DOCUMENT" } as const;
           const counts = {

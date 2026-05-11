@@ -37,6 +37,25 @@ export function pushpinAltitude(opts: { regional?: boolean; touch?: boolean }): 
 }
 
 /**
+ * Altitude (fraction of globe radius) for the *invisible* pointsData hit-cylinder
+ * that sits under each pin and owns its click/hover. It must be tall enough to
+ * fully enclose the *visible* marker — the needle plus the flattened bead on top
+ * — with headroom. If it's only as tall as the needle (as it used to be), the
+ * bead pokes out the top: a ray clicked dead-centre on the bead slips past the
+ * cylinder entirely when the pin is anywhere near the globe's limb, so the click
+ * does nothing. Mirror `makePushpin`'s geometry so the two stay in sync.
+ */
+export function pushpinHitAltitude(opts: { regional?: boolean; touch?: boolean }): number {
+  const k = opts.touch ? PUSHPIN.touchScale : 1;
+  const len = pushpinAltitude(opts) * GLOBE_RADIUS; // needle length, world units
+  const beadR = (opts.regional ? PUSHPIN.beadRadiusRegional : PUSHPIN.beadRadius) * k;
+  // top of the flattened bead, matching makePushpin: bead centre at
+  // y = len + beadR*beadFlatten*0.6, half-thickness (radial) = beadR*beadFlatten
+  const beadTop = len + beadR * PUSHPIN.beadFlatten * 0.6 + beadR * PUSHPIN.beadFlatten;
+  return (beadTop * 1.4) / GLOBE_RADIUS; // +40% headroom
+}
+
+/**
  * A map marker as a THREE.Group: a tiny chrome stub along the group's local +Y
  * axis (y=0 at the globe surface), topped by a flattened glossy, media-type-
  * coloured "button", ringed by a bright halo torus. The caller positions the

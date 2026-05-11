@@ -44,15 +44,15 @@ export function applyCityLightShimmer(
         #ifdef USE_MAP
         {
           float __lm = max(diffuseColor.r, max(diffuseColor.g, diffuseColor.b));
-          float __w = smoothstep(0.10, 0.55, __lm); // 0 on dark ocean, ~1 on bright cities
+          float __w = smoothstep(0.07, 0.45, __lm); // 0 on dark ocean, ~1 on bright cities (wider net than before)
           // 1) deep-ocean navy floor so the unlit half isn't just black
           diffuseColor.rgb += vec3(0.022, 0.052, 0.115) * (1.0 - __w);
-          if (__lm > 0.10) {
+          if (__lm > 0.07) {
             // 2) pull the city lights well off the pure pin-gold + take a real bite out of
             //    their brightness, so they read like a dim sodium glow (the pins win)
             float __lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(__lum), 0.48 * __w);
-            diffuseColor.rgb *= mix(1.0, 0.50, __w);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(__lum), 0.66 * __w);
+            diffuseColor.rgb *= mix(1.0, 0.28, __w);
             // 3) twinkle — seeded by the pixel's own value so lights flicker out of sync
             float __s  = fract(sin(__lm * 113.17 + 41.7) * 4391.0);
             float __s2 = fract(sin(__lm * 271.93 + 7.1) * 9137.0);
