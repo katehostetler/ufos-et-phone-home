@@ -1,87 +1,46 @@
 # UFOs / ET Phone Home
 
-*An unauthorized, suspiciously well-designed archive of the documents Your Government™ would like you to glance at and then move on from.*
+An interactive archive of the 161 declassified UFO/UAP records the U.S. Department of War released on war.gov in May 2026, plotted onto a rotating 3D globe.
 
-Live at **[et-phone-home.pages.dev](https://et-phone-home.pages.dev)**.
+**Live: [et-phone-home.pages.dev](https://et-phone-home.pages.dev)**
 
----
+## What it is
 
-## What is this
+The war.gov release is a CSV manifest plus a stack of FBI Cold War files, Navy infrared footage, Apollo-era photos, and military mission reports. This site plots the records that have a known location as pins on a 3D Earth — colour-coded by file type (red = video, cyan = photo, violet = document) — and clicking a pin flies the camera in and opens the report (PDFs embed and page through inline). The Apollo records sit on a small Moon orbiting the Earth. The ~47 records with no location given have their own page. There's a "Hall of Fame" of the ten strangest, and every record is browsable by type. Each one links back to its original war.gov URL; nothing is altered.
 
-In May 2026 the U.S. Department of War dropped a folder of 161 declassified UFO/UAP records onto `war.gov` — a CSV manifest, a pile of PDFs, some Navy infrared footage, a handful of Apollo-era photos, and a stack of FBI Cold War files that mostly say "we don't know either." Decades of fighter pilots, ship crews, and Apollo astronauts going *"...are you seeing this too?"* into a hot mic — orbs that launch other orbs, a "super-hot" sphere that outran the helicopter sent to chase it, an astronaut's margin note in someone's actual handwriting titled *"UFO Sighting by Borman"* — and the official takeaway is still, essentially, a polite shrug. Make of that what you will. We did.
-
-I wanted to see a more visual version of all this — *okay, but where are the sightings?* — so I built one.
-
-It's a rotating 3D Earth. Pins are colour-coded by file type (red = video, cyan = photo, gold = document). Click a pin — the camera flies in, a panel slides out, you read the report, you decide for yourself. There's a `★ HALL OF FAME` chip for the ten genuinely unhinged ones — Mexico's Congress hearing testimony about "two alleged alien corpses"; an FBI Lab sketch of a bronze ellipsoid "materializing out of a bright light"; a 747 crew at 41,000 feet photographing something doing corkscrews and 90-degree turns. The Apollo records live on an actual little Moon orbiting the Earth, because putting a pin for a lunar photo in the middle of the Atlantic was, frankly, embarrassing.
-
-And yes, every so often a few small silver flying saucers drift past. Get your cursor near one and it bolts — but you can run it down if you're quick. We don't make the rules.
-
-Everything links back to the original government URLs. Nothing is altered. We just gave it a budget.
-
----
-
-## Running it locally
+## Run it locally
 
 ```bash
 npm install
-npm run build:data   # builds records.json from the pinned CSV, geocodes locations, mirrors thumbnails (~1 min first run)
+npm run build:data   # builds src/data/records.json from the cached CSV (~1 min first run; mirrors thumbnails)
 npm run dev          # http://localhost:4321
-npm test             # vitest — pure logic + component behaviour
-npm run build        # production build (re-runs build:data first)
+npm test             # vitest
+npm run build        # production build
 ```
 
-The archive is pinned to the **8 May 2026 release — 161 records** — so it always lists the full set the war.gov page documents. The CSV manifest is cached at `data/uap-csv.csv` and that's what every build reads. war.gov has quietly edited the live CSV since launch (dropping a few duplicate rows, fixing a couple of links), so to pull a fresh copy and review the diff, run `WARGOV_REFRESH=1 npm run build:data` — the build prints a loud warning if the record count moves off 161. The pipeline is otherwise idempotent: re-running only fetches *new* thumbnails. (Thumbnails are mirrored locally because Akamai 403s anyone who tries to hotlink them, which is its own kind of cover-up.)
+The archive is pinned to the May 2026 release (161 records) — every build reads the cached `data/uap-csv.csv`. To pull a fresh copy from war.gov and review the diff: `WARGOV_REFRESH=1 npm run build:data` (the build warns if the record count changes).
 
-Deployed via Cloudflare Pages — pushes to `main` auto-build and ship. The `LISTEN`-aloud feature uses ElevenLabs if an `ELEVENLABS_API_KEY` is set in the Pages environment, and quietly falls back to the browser's built-in robot voice if not.
+Deployed on Cloudflare Pages — pushes to `main` build and ship automatically. The "Listen" feature uses ElevenLabs if `ELEVENLABS_API_KEY` is set in the Pages environment, otherwise the browser's built-in speech synthesis.
 
----
+## Stack
 
-## How it works (the boring true part)
-
-```
-war.gov CSV manifest
-        │
-        ▼
-scripts/build-records.mjs   ──  parses the CSV, geocodes "Incident Location" strings
-        │                       (static lookup table — all 36 distinct strings covered),
-        │                       scrapes DVIDS for video thumbnails + MP4 URLs,
-        │                       mirrors war.gov thumbnails into public/thumbnails/
-        ▼
-src/data/records.json   (committed; the build refuses to ship if a featured-record id has gone missing)
-        │
-        ▼
-Astro + React + react-globe.gl (Three.js) + Tailwind  →  static site
-```
-
-## Project structure
+Astro + React + [`react-globe.gl`](https://github.com/vasturiano/react-globe.gl) (Three.js) + Tailwind. `scripts/build-records.mjs` parses the war.gov CSV, geocodes the "Incident Location" strings via a static lookup table, scrapes DVIDS for video thumbnails/MP4s, and mirrors war.gov thumbnails into `public/thumbnails/`. The output is `src/data/records.json`; `src/data/featured.json` is the curated Hall of Fame (the build fails if it references a record that no longer exists).
 
 ```
-ufos-et-phone-home/
-├── data/                    # build-time inputs: CSV, geocode lookups, DVIDS caches
-├── public/
-│   ├── thumbnails/          # mirrored war.gov thumbnails
-│   └── textures/            # earth-night + moon textures
-├── scripts/build-records.mjs# the data pipeline
-├── functions/api/tts.js     # Cloudflare Pages Function — ElevenLabs TTS proxy
-├── src/
-│   ├── components/          # GlobeApp, RecordModal, QueuePanel, PinRail, HallOfFameOverlay,
-│   │                        # FloatingUfos, LunarMoon, TransmissionModal, Hud, RecordCard, …
-│   ├── lib/                 # pushpin geometry, city-light shimmer shader, ufo pool, featured.json resolver, mobile bottom-sheet logic
-│   ├── data/                # generated records.json + curated featured.json
-│   ├── layouts/             # Base, PageLayout
-│   ├── pages/               # /, /gallery, /videos, /photos, /files, /no-location, /about
-│   ├── styles/global.css
-│   └── types/record.ts
-├── tests/                   # vitest
-└── docs/superpowers/        # design specs + implementation plans + handoff notes
+data/                      build-time inputs (CSV, geocode lookups, DVIDS caches)
+public/thumbnails/         mirrored war.gov thumbnails
+public/textures/           earth + moon textures
+scripts/build-records.mjs  the data pipeline
+functions/api/tts.js       Cloudflare Pages Function — ElevenLabs TTS proxy
+src/components/            GlobeApp, RecordModal, HallOfFameOverlay, GalleryFilter, FloatingUfos, LunarMoon, …
+src/lib/                   pushpin geometry, city-light shimmer shader, ufo pool, gallery-filter + bottom-sheet logic
+src/data/                  records.json (generated) + featured.json (curated)
+src/pages/                 /, /gallery, /videos, /photos, /files, /no-location, /about
+tests/                     vitest
 ```
-
----
 
 ## License
 
-The **code** in this repo is [MIT licensed](./LICENSE) — copy it, fork it, build something weirder.
+The **code** in this repo is [MIT licensed](./LICENSE). The **documents, photos, and footage** are works of the U.S. federal government (war.gov, DVIDS, NASA) and are in the public domain — this project is just a viewer, and source files link back to the original government URLs.
 
-The **documents, photos, and footage** are works of the U.S. federal government (war.gov, DVIDS, NASA) and are in the public domain; this project is just a viewer. Source PDFs and full-resolution files link back to the original government URLs and aren't mirrored here.
-
-Built by [Kate](https://withkate.ai). Government data courtesy of [war.gov/UFO](https://www.war.gov/UFO/). Believing is optional but encouraged.
+Built by [Kate](https://withkate.ai). Data from [war.gov/UFO](https://www.war.gov/UFO/).

@@ -8,6 +8,11 @@ dist/
 # brainstorming artifacts (visual companion mockups)
 .superpowers/
 
+# local-only working docs — design specs, implementation plans, deploy/handoff
+# notes. Kept on disk, not in the public repo (README + CHANGELOG cover what
+# anyone cloning actually needs).
+docs/
+
 # env / secrets
 .env
 .env.*
